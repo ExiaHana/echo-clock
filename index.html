@@ -49,7 +49,8 @@ body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
 
 /* 文字盤の配色 */
 .tk-major{stroke:var(--fg)} .tk-minor{stroke:var(--dim)}
-.num{fill:var(--fg);font-family:var(--font);font-weight:var(--nw)}
+.num{fill:var(--fg);font-family:var(--font);font-weight:var(--nw);
+  stroke:var(--bg);paint-order:stroke;stroke-linejoin:round}   /* 背景色のふちで、針の上でも読めるようにする */
 .hand-tip{display:none;fill:var(--bg);stroke:var(--fg);stroke-width:2.2}
 body.hs-tip .hand-tip{display:inline}
 .hand{stroke:var(--fg)}
@@ -141,6 +142,7 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
       <g id="mh"><line id="mhl" class="hand" x1="100" y1="100" x2="100" y2="26" stroke-width="3" stroke-linecap="round"/>
         <circle class="hand-tip" cx="100" cy="26" r="5.5"/></g>
       <g id="sh"><line class="sechand" x1="100" y1="112" x2="100" y2="22" stroke-width="1.5" stroke-linecap="round"/></g>
+      <g id="nums"></g><!-- 数字は針より上に描く（重なっても読めるように） -->
       <circle class="pivot" cx="100" cy="100" r="4"/>
     </svg>
     <div class="sub">
@@ -350,8 +352,8 @@ function boundary(theta, inset) {
   return { x: 100 + R * dx, y: 100 + R * dy, dx: dx, dy: dy };
 }
 function drawFace() {
-  const NS = "http://www.w3.org/2000/svg", g = $("ticks");
-  g.textContent = "";
+  const NS = "http://www.w3.org/2000/svg", g = $("ticks"), gn = $("nums");
+  g.textContent = ""; gn.textContent = "";
   for (let i = 0; i < 60; i++) {
     const major = i % 5 === 0, len = major ? 10 : 5;
     const p = boundary(i * 6 * Math.PI / 180, 0);
@@ -374,8 +376,9 @@ function drawFace() {
     t.setAttribute("text-anchor", "middle");
     t.setAttribute("dominant-baseline", "central");
     t.setAttribute("font-size", S.ns);
+    t.setAttribute("stroke-width", (S.ns * 0.22).toFixed(1));   // ふちの太さは数字の大きさに合わせる
     t.textContent = n;
-    g.appendChild(t);
+    gn.appendChild(t);
   }
 }
 
