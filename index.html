@@ -598,6 +598,7 @@ function closePanel() { panel.classList.remove("open"); clearTimeout(closeTimer)
 
 document.addEventListener("click", e => {
   if (panel.contains(e.target) || $("banner").contains(e.target)) return;
+  if (!snoozed && recoverByTap()) return;   // 復帰が必要なあいだは、どこを触っても復帰（「あとで」を押したら設定を開ける）
   panel.classList.contains("open") ? closePanel() : openPanel();
 });
 panel.addEventListener("click", e => {
@@ -789,18 +790,22 @@ function refreshStatus() {
     const msgs = [];
     if (needFs) msgs.push("全画面が解除されました。");
     if (needAu) msgs.push("常時表示用の無音再生が止まりました。");
-    $("b-msg").textContent = msgs.join(" ") + "下のボタンをタップして復帰してください。";
+    $("b-msg").textContent = msgs.join(" ") + "画面のどこかをタップすると復帰します。";
     $("b-nofs").style.display = needFs ? "" : "none";
     b.classList.add("open");
   } else b.classList.remove("open");
 }
-// 復帰ボタン：全画面と無音再生を、同じタップの中で互いに独立して要求する（片方の失敗で他方を止めない）
-$("b-go").addEventListener("click", () => {
+// タップでの復帰：全画面と無音再生を、同じタップの中で互いに独立して要求する（片方の失敗で他方を止めない）
+// 復帰が必要なものが無ければ何もせず false を返す
+function recoverByTap() {
   const needFs = fsNeeded(), needAu = IS_SILK && au.started && au.status === "needs";
+  if (!needFs && !needAu) return false;
   if (needFs) { try { fsRequest(false); } catch (_) {} }
   if (needAu) { try { auResume(); } catch (_) {} }
   wake();
-});
+  return true;
+}
+$("b-go").addEventListener("click", recoverByTap);
 $("b-nofs").addEventListener("click", fsGiveUp);
 $("b-later").addEventListener("click", () => { snoozed = true; refreshStatus(); setTimeout(() => { snoozed = false; refreshStatus(); }, 60000); });
 
