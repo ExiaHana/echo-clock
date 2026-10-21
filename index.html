@@ -66,6 +66,7 @@ body.dg-seg #dig2, body.no-digital #seg7{display:none}
 .seg-pre{fill:var(--dim);font-family:var(--font);stroke:var(--bg);paint-order:stroke;stroke-linejoin:round}
 body.dg-bold .seg-on, body.dg-box .seg-on, body.dg-bold .seg-pre, body.dg-box .seg-pre{fill:var(--fg)}
 body.dg-box .seg-halo{display:none}
+#digwrap{transition:transform .8s ease}
 .hand-tip{display:none;fill:var(--bg);stroke:var(--fg);stroke-width:2.2}
 body.hs-tip .hand-tip{display:inline}
 .hand{stroke:var(--fg)}
@@ -158,9 +159,11 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
         <circle class="hand-tip" cx="100" cy="26" r="5.5"/></g>
       <g id="sh"><line class="sechand" x1="100" y1="112" x2="100" y2="22" stroke-width="1.5" stroke-linecap="round"/></g>
       <g id="nums"></g><!-- 数字は針より上に描く（重なっても読めるように） -->
+      <g id="digwrap"><!-- 時刻をまとめて動かす（位置が自動のとき、針から離れた所へ滑らせる） -->
       <rect id="dig2box" class="dial-box" rx="3"/>
       <text id="dig2" class="dial-dig" x="100" y="135" text-anchor="middle" dominant-baseline="central"></text>
       <g id="seg7"></g><!-- 液晶風のときの時刻（線を組み合わせて描く。フォントを読み込まずに済むように） -->
+      </g>
       <circle class="pivot" cx="100" cy="100" r="4"/>
     </svg>
     <div class="sub">
@@ -214,6 +217,10 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
     <div class="row"><div class="lb">デジタル時刻の文字</div>
       <div class="seg" data-choice="digFont">
         <button data-val="std">標準</button><button data-val="seg7">液晶風（7セグ）</button><button data-val="mono">等幅</button>
+      </div></div>
+    <div class="row"><div class="lb">デジタル時刻の位置</div>
+      <div class="seg" data-choice="digPos">
+        <button data-val="auto">針をよけて自動</button><button data-val="fixed">中心の下に固定</button>
       </div></div>
     <div class="row"><div class="lb">フォント</div>
       <div class="seg" data-choice="font">
@@ -290,6 +297,7 @@ const DEFAULTS = {
   ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, tl: 10, ds: 1, font: "gothic", hands: "std",   // tl=太い目盛りの長さ ds=デジタル時刻の大きさ（数字のサイズに対する倍率）
   theme: "dark", sec: "#ff8a5c", lower: "days",   // lower=天気の下の欄（days=日ごとの天気 / cal=カレンダー）
   digStyle: "std", digFmt: "24", digFont: "std",   // 文字盤の中のデジタル時刻（見た目 / 表し方 / 文字）
+  digPos: "auto",                                  // 時刻の位置（auto=針から離れた上下左右へ / fixed=中心の下）
   nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true,
   fsWanted: false   // 全画面を使う意思（設定ボタンで入れた/解除した状態。初期化では変えない）
 };
@@ -340,6 +348,7 @@ function sanitize() {
   if (["std", "bold", "box"].indexOf(S.digStyle) < 0) S.digStyle = DEFAULTS.digStyle;
   if (["24", "12", "sec"].indexOf(S.digFmt) < 0) S.digFmt = DEFAULTS.digFmt;
   if (["std", "seg7", "mono"].indexOf(S.digFont) < 0) S.digFont = DEFAULTS.digFont;
+  if (["auto", "fixed"].indexOf(S.digPos) < 0) S.digPos = DEFAULTS.digPos;
   Object.keys(SLIDERS).forEach(k => { if (typeof S[k] !== "number" || isNaN(S[k])) S[k] = DEFAULTS[k]; });
 }
 sanitize();
@@ -426,7 +435,8 @@ function drawFace() {
   }
   // デジタル時刻は中心と「6」のあいだ。大きさは数字のサイズ×設定の倍率
   const dg = $("dig2"), fsz = S.ns * 0.85 * S.ds;
-  dg.setAttribute("y", (100 + (92 - inset) * 0.55).toFixed(2));
+  digR = 92 - inset;
+  dg.setAttribute("y", (100 + digR * 0.55).toFixed(2));
   dg.setAttribute("font-size", fsz.toFixed(1));
   dg.setAttribute("stroke-width", (fsz * 0.22).toFixed(1));
 }
@@ -444,10 +454,36 @@ function updateDig(d) {
   const t = $("dig2"), g = $("seg7");
   if (S.digFont === "seg7") { t.textContent = ""; drawSeg7(s); }
   else { g.textContent = ""; t.textContent = s; }
-  if (S.digStyle !== "box" || !S.digital) return;
-  const b = (S.digFont === "seg7" ? g : t).getBBox(), px = 4, py = 1.5, r = $("dig2box");   // 枠は文字の大きさに合わせる
-  r.setAttribute("x", (b.x - px).toFixed(2)); r.setAttribute("y", (b.y - py).toFixed(2));
-  r.setAttribute("width", (b.width + px * 2).toFixed(2)); r.setAttribute("height", (b.height + py * 2).toFixed(2));
+  if (!S.digital) return;
+  const b = (S.digFont === "seg7" ? g : t).getBBox();
+  if (S.digStyle === "box") {
+    const px = 4, py = 1.5, r = $("dig2box");   // 枠は文字の大きさに合わせる
+    r.setAttribute("x", (b.x - px).toFixed(2)); r.setAttribute("y", (b.y - py).toFixed(2));
+    r.setAttribute("width", (b.width + px * 2).toFixed(2)); r.setAttribute("height", (b.height + py * 2).toFixed(2));
+  }
+  placeDig(d, b.width + (S.digStyle === "box" ? 8 : 0));
+}
+
+// 時刻の置き場所。自動のときは、上・下・右・左のうち時針と分針から最も離れた所へ動かす。
+// 秒針は数えない（数秒ごとに跳ね回るため）。今いる所に針がかかってきたときだけ移る（落ち着かせるため）。
+// 幅が広くて中心と数字のあいだに収まらないときは、左右を使わない。
+let digR = 60, digSpot = "down";   // digR=数字が並ぶ円の半径（drawFace で決まる）
+function placeDig(d, w) {
+  const off = digR * 0.55;                                     // 中心から時刻までの距離（下に置くときの位置と同じ）
+  const in0 = 100 + 7, in1 = 100 + digR - S.ns * 0.45;         // 右に置くときに使える横の範囲（中心の丸〜「3」の手前）
+  const sideOK = in1 - in0 >= w + 4, sx = (in0 + in1) / 2 - 100;
+  const spots = { down: [0, 0, 180], up: [0, -2 * off, 0], right: [sx, -off, 90], left: [-sx, -off, 270] };
+  if (S.digPos !== "auto") digSpot = "down";
+  else {
+    const ha = ((d.getHours() % 12) + d.getMinutes() / 60) * 30, ma = (d.getMinutes() + d.getSeconds() / 60) * 6;
+    const gap = (a, b) => { const x = Math.abs(a - b) % 360; return x > 180 ? 360 - x : x; };
+    const score = k => Math.min(gap(spots[k][2], ha), gap(spots[k][2], ma));
+    const keys = ["down", "up", "right", "left"].filter(k => sideOK || k === "down" || k === "up");
+    if (keys.indexOf(digSpot) < 0 || score(digSpot) < 35)
+      digSpot = keys.reduce((a, k) => score(k) > score(a) + 0.01 ? k : a, keys[0]);
+  }
+  const c = spots[digSpot];
+  $("digwrap").style.transform = "translate(" + c[0].toFixed(2) + "px, " + c[1].toFixed(2) + "px)";
 }
 
 // 液晶風（7セグメント）の時刻を、六角形の線を組み合わせて描く。消えている線もうっすら出して液晶らしくする。
