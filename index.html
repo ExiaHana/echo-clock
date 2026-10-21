@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echo Dashboard</title>
+<style>
+:root{
+  --bg:#0b0d12; --fg:#e8ecf3; --dim:#8892a6; --accent:#6ea8ff; --card:#141824; --row:rgba(255,255,255,.05);
+  --line:rgba(255,255,255,.14); --sec:#ff8a5c;
+  --fs:1; --cs:1; --nw:300; --plate:var(--bg);
+  --font:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+}
+:root[data-theme="amoled"]{ --bg:#000; --card:#0c0c0e; --row:rgba(255,255,255,.06); }
+:root[data-theme="light"]{
+  --bg:#f3f5f9; --fg:#1a2030; --dim:#5d6677; --accent:#2a6bd6; --card:#ffffff;
+  --row:rgba(0,0,0,.05); --line:rgba(0,0,0,.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;
+  font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+body.night #wrap{opacity:.55}
+#wrap{font-family:var(--font);width:100%;height:100%;display:grid;grid-template-columns:1fr 1fr;gap:3vw;
+  padding:4vh 3.5vw;transition:transform 2s ease,opacity 2s ease}
+body.no-weather #wrap{grid-template-columns:1fr}
+body.no-weather .right{display:none}
+
+/* 左: アナログ時計 */
+.clock{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:0;min-height:0}
+#face{width:calc(min(40vw,68vh) * var(--cs));height:calc(min(40vw,68vh) * var(--cs));
+  max-height:calc(100% - 13vh);flex:0 1 auto}
+.sub{margin-top:1.4vh;text-align:center;line-height:1.3}
+.sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs))}
+.sub .dig{font-size:calc(min(2.2vw,4vh) * var(--fs));color:var(--dim);font-variant-numeric:tabular-nums}
+body.no-date #date, body.no-digital #dig{display:none}
+
+/* 文字盤の配色 */
+.tk-major{stroke:var(--fg)} .tk-minor{stroke:var(--dim)}
+.num{fill:var(--fg);font-family:var(--font);font-weight:var(--nw)}
+.plate{fill:var(--card);stroke:var(--line);stroke-width:1.5}
+.hand-tip{display:none;fill:var(--plate);stroke:var(--fg);stroke-width:2.2}
+body.hs-tip .hand-tip{display:inline}
+.hand{stroke:var(--fg)}
+.sechand{stroke:var(--sec)} .pivot{fill:var(--sec)}
+body.no-nums .num{display:none}
+body.no-minor .tk-minor{display:none}
+body.no-second #sh{display:none}
+
+/* 右: 天気 */
+.right{display:flex;flex-direction:column;justify-content:center;gap:3vh;min-width:0;min-height:0}
+.card{background:var(--card);border-radius:2.4vh;padding:2.4vh 2vw}
+.now{display:flex;align-items:center;gap:1.6vw}
+.now .icon{font-size:calc(min(10vw,18vh) * var(--fs));line-height:1}
+.now .temp{font-size:calc(min(8vw,15vh) * var(--fs));font-weight:300;line-height:1}
+.now .label{font-size:calc(min(2.6vw,4.8vh) * var(--fs));color:var(--dim);margin-left:auto;text-align:right;white-space:pre-line}
+.hourly{display:flex;gap:.7vw;margin-top:2vh}
+.hr{flex:1;min-width:0;text-align:center;background:var(--row);border-radius:1.2vh;padding:.9vh .1vw;
+  font-size:calc(min(2.1vw,3.8vh) * var(--fs));line-height:1.25}
+.hr .h{color:var(--dim);font-size:.82em}
+.hr .i{font-size:1.5em;line-height:1.15}
+.hr .t{white-space:nowrap}
+.hr .p{color:var(--accent);font-size:.82em}
+body.no-hourly .hourly{display:none}
+.days{display:flex;flex-direction:column;gap:1.1vh;margin-top:2vh}
+.day{display:flex;align-items:center;gap:1.4vw;background:var(--row);border-radius:1.4vh;
+  padding:.9vh 1.4vw;font-size:calc(min(2.4vw,4.3vh) * var(--fs))}
+.day .d{flex:0 0 4.2em;color:var(--dim)}
+.day .i{flex:0 0 auto;font-size:1.45em;line-height:1.1}
+.day .t{flex:1;white-space:nowrap;text-align:right}
+.day .t .lo{color:var(--dim)}
+.day .p{flex:0 0 3.4em;text-align:right;color:var(--accent)}
+.msg{color:var(--dim);font-size:calc(min(2.2vw,4vh) * var(--fs))}
+
+/* 設定パネル（画面をタップで開閉） */
+#panel{display:none;position:fixed;right:2vw;top:50%;transform:translateY(-50%);z-index:10;
+  width:min(54vw,680px);max-height:96vh;overflow-y:auto;background:var(--card);color:var(--fg);
+  border:1px solid var(--line);border-radius:2vh;padding:1.6vh 1.6vw;
+  box-shadow:0 1vh 4vh rgba(0,0,0,.45);font-size:min(2vw,3.7vh);-webkit-user-select:none}
+#panel.open{display:block}
+.tabs{margin-bottom:.6vh}
+.tabpage{display:none}
+.tabpage.on{display:block}
+#panel h2{font-size:1em;font-weight:500;margin-bottom:1.2vh;display:flex;justify-content:space-between;align-items:center}
+#panel .hint{color:var(--dim);font-size:.72em;font-weight:400}
+.row{margin:1vh 0}
+.row > .lb{color:var(--dim);font-size:.78em;margin-bottom:.5vh;display:flex;justify-content:space-between}
+input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
+.seg{display:flex;gap:.6vw}
+.seg button,.tg,.act{flex:1;min-height:min(6.6vh,42px);border:1px solid var(--line);background:var(--row);color:var(--fg);
+  border-radius:1.2vh;font:inherit;font-size:.86em;padding:0 .6vw}
+.seg button.on,.tg[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg .sw{flex:0 0 auto;width:min(6.6vh,42px);height:min(6.6vh,42px);min-height:0;border-radius:50%;border:3px solid transparent;padding:0}
+.seg .sw.on{border-color:var(--fg)}
+.tgs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8vh .6vw}
+.tgs .tg{font-size:.78em}
+.acts{display:flex;gap:.8vw;margin-top:1.2vh}
+.act.close{background:var(--accent);border-color:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <section class="clock">
+    <svg id="face" viewBox="0 0 200 200" aria-label="clock">
+      <g id="ticks"></g>
+      <g id="hh"><line id="hhl" class="hand" x1="100" y1="100" x2="100" y2="52" stroke-width="5" stroke-linecap="round"/>
+        <circle class="hand-tip" cx="100" cy="52" r="6.5"/></g>
+      <g id="mh"><line id="mhl" class="hand" x1="100" y1="100" x2="100" y2="26" stroke-width="3" stroke-linecap="round"/>
+        <circle class="hand-tip" cx="100" cy="26" r="5.5"/></g>
+      <g id="sh"><line class="sechand" x1="100" y1="112" x2="100" y2="22" stroke-width="1.5" stroke-linecap="round"/></g>
+      <circle class="pivot" cx="100" cy="100" r="4"/>
+    </svg>
+    <div class="sub">
+      <div class="date" id="date"></div>
+      <div class="dig" id="dig"></div>
+    </div>
+  </section>
+  <section class="right">
+    <div class="card" id="weather"><div class="msg">天気を取得中…</div></div>
+  </section>
+</div>
+
+<div id="panel" role="dialog" aria-label="設定">
+  <h2><span>表示設定</span><span class="hint">変更は自動で保存されます</span></h2>
+  <div class="seg tabs">
+    <button data-tab="size" class="on">サイズ</button><button data-tab="design">デザイン</button><button data-tab="show">表示</button>
+  </div>
+
+  <div class="tabpage on" data-page="size">
+    <div class="row"><div class="lb"><span>日付・天気の文字サイズ</span><span id="v-fs"></span></div>
+      <input type="range" data-key="fs" min="0.7" max="1.5" step="0.05"></div>
+    <div class="row"><div class="lb"><span>時計の大きさ</span><span id="v-cs"></span></div>
+      <input type="range" data-key="cs" min="0.6" max="1.2" step="0.05"></div>
+    <div class="row"><div class="lb"><span>数字のサイズ</span><span id="v-ns"></span></div>
+      <input type="range" data-key="ns" min="10" max="28" step="1"></div>
+    <div class="row"><div class="lb"><span>数字の太さ</span><span id="v-nw"></span></div>
+      <input type="range" data-key="nw" min="100" max="900" step="100"></div>
+  </div>
+
+  <div class="tabpage" data-page="design">
+    <div class="row"><div class="lb">文字盤の形</div>
+      <div class="seg" data-choice="shape">
+        <button data-val="round">丸</button><button data-val="square">四角</button><button data-val="rounded">角丸四角</button>
+      </div></div>
+    <div class="row"><div class="lb">針のデザイン</div>
+      <div class="seg" data-choice="hands">
+        <button data-val="thin">細</button><button data-val="std">標準</button><button data-val="bold">太</button><button data-val="tip">先端丸</button>
+      </div></div>
+    <div class="row"><div class="lb">フォント</div>
+      <div class="seg" data-choice="font">
+        <button data-val="gothic">ゴシック</button><button data-val="mincho">明朝</button><button data-val="maru">丸ゴ</button><button data-val="mono">等幅</button><button data-val="serif">欧文</button>
+      </div></div>
+    <div class="row"><div class="lb">テーマ</div>
+      <div class="seg" data-choice="theme">
+        <button data-val="dark">ダーク</button><button data-val="amoled">真っ黒</button><button data-val="light">ライト</button>
+      </div></div>
+    <div class="row"><div class="lb">秒針・アクセントの色</div>
+      <div class="seg" data-choice="sec" style="gap:1.4vw">
+        <button class="sw" data-val="#ff8a5c" style="background:#ff8a5c" aria-label="オレンジ"></button>
+        <button class="sw" data-val="#6ea8ff" style="background:#6ea8ff" aria-label="ブルー"></button>
+        <button class="sw" data-val="#5fd38d" style="background:#5fd38d" aria-label="グリーン"></button>
+        <button class="sw" data-val="#ff6fa5" style="background:#ff6fa5" aria-label="ピンク"></button>
+        <button class="sw" data-val="#f2c94c" style="background:#f2c94c" aria-label="イエロー"></button>
+        <button class="sw" data-val="#9aa4b5" style="background:#9aa4b5" aria-label="グレー"></button>
+      </div></div>
+  </div>
+
+  <div class="tabpage" data-page="show">
+    <div class="row"><div class="lb">表示の切り替え</div>
+      <div class="tgs">
+        <button class="tg" data-toggle="nums">数字</button>
+        <button class="tg" data-toggle="minor">細かい目盛り</button>
+        <button class="tg" data-toggle="second">秒針</button>
+        <button class="tg" data-toggle="digital">デジタル時刻</button>
+        <button class="tg" data-toggle="date">日付</button>
+        <button class="tg" data-toggle="weather">天気</button>
+        <button class="tg" data-toggle="hourly">1時間ごと天気</button>
+        <button class="tg" data-toggle="night">夜間の減光</button>
+      </div></div>
+  </div>
+
+  <div class="acts">
+    <button class="act" id="reset">初期設定に戻す</button>
+    <button class="act close" id="close">閉じる</button>
+  </div>
+</div>
+
+<script>
+/* ================= 設定 ================= */
+const CONFIG = {
+  PLACE: "東京", LAT: 35.6895, LON: 139.6917,
+  WEATHER_REFRESH_MIN: 30,
+  NIGHT_FROM: 23, NIGHT_TO: 6,   // この時間帯は減光
+  PANEL_AUTOCLOSE_SEC: 30
+};
+const DEFAULTS = {
+  fs: 1, cs: 1, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
+  theme: "dark", sec: "#ff8a5c",
+  nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true
+};
+const FONTS = {   // 端末内蔵フォントのみ（無い環境では次の候補に自動で切り替わります）
+  gothic: '"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif',
+  mincho: '"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho","Times New Roman",serif',
+  maru:   '"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Yu Gothic",system-ui,sans-serif',
+  mono:   'ui-monospace,"SFMono-Regular",Menlo,Consolas,"Courier New",monospace',
+  serif:  'Georgia,"Times New Roman",Times,serif'
+};
+const HANDS = {   // hw=時針の太さ mw=分針の太さ tip=先端に丸
+  thin: { hw: 3,   mw: 1.8, tip: false },
+  std:  { hw: 5,   mw: 3,   tip: false },
+  bold: { hw: 8,   mw: 5,   tip: false },
+  tip:  { hw: 3.5, mw: 2.2, tip: true }
+};
+const SLIDERS = {   // 設定キー: 表示フォーマット
+  fs: v => Math.round(v * 100) + "%",
+  cs: v => Math.round(v * 100) + "%",
+  ns: v => String(v),
+  nw: v => String(v)
+};
+const STORE_KEY = "echoDash.v1";
+/* ======================================== */
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const WD = ["日","月","火","水","木","金","土"];
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+/* ---------- 設定の保存・適用 ---------- */
+let S = Object.assign({}, DEFAULTS);
+try {
+  const raw = localStorage.getItem(STORE_KEY);
+  if (raw) S = Object.assign(S, JSON.parse(raw));
+} catch (_) {}
+function sanitize() {
+  if (!FONTS[S.font]) S.font = DEFAULTS.font;
+  if (!HANDS[S.hands]) S.hands = DEFAULTS.hands;
+  if (["round", "square", "rounded"].indexOf(S.shape) < 0) S.shape = DEFAULTS.shape;
+  Object.keys(SLIDERS).forEach(k => { if (typeof S[k] !== "number" || isNaN(S[k])) S[k] = DEFAULTS[k]; });
+}
+sanitize();
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (_) {} }
+
+function applySettings() {
+  sanitize();
+  const root = document.documentElement;
+  root.style.setProperty("--fs", S.fs);
+  root.style.setProperty("--cs", S.cs);
+  root.style.setProperty("--sec", S.sec);
+  root.style.setProperty("--nw", S.nw);
+  root.style.setProperty("--font", FONTS[S.font]);
+  root.style.setProperty("--plate", S.shape === "round" ? "var(--bg)" : "var(--card)");
+  root.setAttribute("data-theme", S.theme);
+  const b = document.body.classList;
+  b.toggle("no-nums", !S.nums);
+  b.toggle("no-minor", !S.minor);
+  b.toggle("no-second", !S.second);
+  b.toggle("no-digital", !S.digital);
+  b.toggle("no-date", !S.date);
+  b.toggle("no-weather", !S.weather);
+  b.toggle("no-hourly", !S.hourly);
+  const hd = HANDS[S.hands];
+  b.toggle("hs-tip", hd.tip);
+  $("hhl").setAttribute("stroke-width", hd.hw);
+  $("mhl").setAttribute("stroke-width", hd.mw);
+  drawFace();
+  // パネル表示の同期
+  Object.keys(SLIDERS).forEach(k => {
+    const inp = document.querySelector('input[data-key="' + k + '"]');
+    if (inp) inp.value = S[k];
+    $("v-" + k).textContent = SLIDERS[k](S[k]);
+  });
+  document.querySelectorAll("[data-choice]").forEach(g =>
+    g.querySelectorAll("button").forEach(btn => btn.classList.toggle("on", btn.dataset.val === String(S[g.dataset.choice]))));
+  document.querySelectorAll("[data-toggle]").forEach(btn =>
+    btn.setAttribute("aria-pressed", S[btn.dataset.toggle] ? "true" : "false"));
+  applyNight();
+}
+
+/* ---------- 文字盤（目盛り・数字・形） ---------- */
+// 角度 theta(0=真上, 時計回り)の方向で、文字盤の縁から inset だけ内側にある座標と、中心から外向きの単位ベクトル(dx,dy)を返す
+function boundary(theta, shape, inset) {
+  const dx = Math.sin(theta), dy = -Math.cos(theta);
+  if (shape === "round") {
+    const R = 94 - inset;
+    return { x: 100 + R * dx, y: 100 + R * dy, dx: dx, dy: dy };
+  }
+  const H = 92 - inset, rc = Math.max(0, (shape === "rounded" ? 34 : 0) - inset);
+  const k = H / Math.max(Math.abs(dx), Math.abs(dy));
+  let px = dx * k, py = dy * k;
+  const c0 = H - rc;
+  if (rc > 0 && Math.abs(px) > c0 && Math.abs(py) > c0) {          // 角丸の部分
+    const cx = Math.sign(px) * c0, cy = Math.sign(py) * c0;
+    const bb = dx * cx + dy * cy;
+    const t = bb + Math.sqrt(bb * bb - (cx * cx + cy * cy) + rc * rc);
+    px = dx * t; py = dy * t;
+  }
+  return { x: 100 + px, y: 100 + py, dx: dx, dy: dy };
+}
+function drawFace() {
+  const NS = "http://www.w3.org/2000/svg", g = $("ticks");
+  g.textContent = "";
+  const round = S.shape === "round", m = round ? 0 : 5;     // 四角系は縁から少し内側に目盛りを置く
+  if (!round) {
+    const H = 92, r = document.createElementNS(NS, "rect");
+    r.setAttribute("class", "plate");
+    r.setAttribute("x", 100 - H); r.setAttribute("y", 100 - H);
+    r.setAttribute("width", H * 2); r.setAttribute("height", H * 2);
+    r.setAttribute("rx", S.shape === "rounded" ? 34 : 0);
+    g.appendChild(r);
+  }
+  for (let i = 0; i < 60; i++) {
+    const major = i % 5 === 0, len = major ? 10 : 5;
+    const p = boundary(i * 6 * Math.PI / 180, S.shape, 0);
+    const ox = p.x - p.dx * m, oy = p.y - p.dy * m;          // 目盛りは中心に向かって放射状
+    const ln = document.createElementNS(NS, "line");
+    ln.setAttribute("class", major ? "tk-major" : "tk-minor");
+    ln.setAttribute("x1", ox.toFixed(2)); ln.setAttribute("y1", oy.toFixed(2));
+    ln.setAttribute("x2", (ox - p.dx * len).toFixed(2)); ln.setAttribute("y2", (oy - p.dy * len).toFixed(2));
+    ln.setAttribute("stroke-width", major ? 2.4 : 0.9);
+    ln.setAttribute("stroke-linecap", "round");
+    g.appendChild(ln);
+  }
+  const inset = m + 10 + 6 + S.ns * 0.6;                     // 数字は縮めた同じ形の上に並べる
+  for (let n = 1; n <= 12; n++) {
+    const p = boundary(n * 30 * Math.PI / 180, S.shape, inset);
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("class", "num");
+    t.setAttribute("x", p.x.toFixed(2));
+    t.setAttribute("y", p.y.toFixed(2));
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("dominant-baseline", "central");
+    t.setAttribute("font-size", S.ns);
+    t.textContent = n;
+    g.appendChild(t);
+  }
+}
+
+/* ---------- 時計 ---------- */
+let lastMin = -1;
+function applyNight() {
+  const hr = new Date().getHours();
+  document.body.classList.toggle("night", S.night && (hr >= CONFIG.NIGHT_FROM || hr < CONFIG.NIGHT_TO));
+}
+function tick() {
+  const d = new Date();
+  const s = d.getSeconds() + d.getMilliseconds() / 1000;
+  const m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60;
+  $("hh").setAttribute("transform", `rotate(${h * 30} 100 100)`);
+  $("mh").setAttribute("transform", `rotate(${m * 6} 100 100)`);
+  $("sh").setAttribute("transform", `rotate(${s * 6} 100 100)`);
+
+  if (d.getMinutes() !== lastMin) {
+    lastMin = d.getMinutes();
+    $("date").textContent = `${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`;
+    $("dig").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    // 焼き付き防止：毎分わずかに位置をずらす
+    const dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 12 - 6);
+    $("wrap").style.transform = `translate(${dx}px, ${dy}px)`;
+    applyNight();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ---------- 天気 (Open-Meteo) ---------- */
+const WMO = (c) => {
+  if (c === 0) return ["☀️", "快晴"];
+  if (c === 1) return ["🌤️", "晴れ"];
+  if (c === 2) return ["⛅", "薄曇り"];
+  if (c === 3) return ["☁️", "曇り"];
+  if (c === 45 || c === 48) return ["🌫️", "霧"];
+  if (c >= 51 && c <= 57) return ["🌦️", "霧雨"];
+  if (c >= 61 && c <= 67) return ["🌧️", "雨"];
+  if (c >= 71 && c <= 77) return ["❄️", "雪"];
+  if (c >= 80 && c <= 82) return ["🌦️", "にわか雨"];
+  if (c === 85 || c === 86) return ["🌨️", "にわか雪"];
+  if (c >= 95) return ["⛈️", "雷雨"];
+  return ["❓", "不明"];
+};
+
+async function loadWeather() {
+  const url = "https://api.open-meteo.com/v1/forecast?latitude=" + CONFIG.LAT + "&longitude=" + CONFIG.LON +
+    "&current=temperature_2m,weather_code" +
+    "&hourly=temperature_2m,weather_code,precipitation_probability" +
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+    "&timezone=Asia%2FTokyo&forecast_days=3";
+  const box = $("weather");
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const j = await res.json();
+    const [icon, label] = WMO(j.current.weather_code);
+    box.textContent = "";
+    const now = el("div", "now");
+    now.append(el("div", "icon", icon), el("div", "temp", Math.round(j.current.temperature_2m) + "°"),
+      el("div", "label", CONFIG.PLACE + "\n" + label));
+    const hourly = el("div", "hourly");
+    const hrs = j.hourly, key = String(j.current.time).slice(0, 13) + ":00";
+    let k0 = hrs.time.indexOf(key);
+    if (k0 < 0) k0 = 0;
+    for (let k = k0; k < Math.min(k0 + 6, hrs.time.length); k++) {
+      const c = el("div", "hr");
+      const hh = parseInt(hrs.time[k].slice(11, 13), 10);
+      const [hi] = WMO(hrs.weather_code[k]);
+      const hp = hrs.precipitation_probability[k];
+      c.append(el("div", "h", k === k0 ? "今" : hh + "時"), el("div", "i", hi),
+        el("div", "t", Math.round(hrs.temperature_2m[k]) + "°"), el("div", "p", (hp == null ? "-" : hp) + "%"));
+      hourly.append(c);
+    }
+    const days = el("div", "days");
+    ["今日", "明日", "明後日"].forEach((name, i) => {
+      const [ic] = WMO(j.daily.weather_code[i]);
+      const row = el("div", "day");
+      const t = el("div", "t");
+      t.append(document.createTextNode(Math.round(j.daily.temperature_2m_max[i]) + "° "),
+        el("span", "lo", Math.round(j.daily.temperature_2m_min[i]) + "°"));
+      const p = j.daily.precipitation_probability_max[i];
+      row.append(el("div", "d", name), el("div", "i", ic), t, el("div", "p", (p == null ? "-" : p) + "%"));
+      days.append(row);
+    });
+    box.append(now, hourly, days);
+  } catch (e) {
+    if (!box.querySelector(".now")) { box.textContent = ""; box.append(el("div", "msg", "天気を取得できません")); }
+    console.error("weather", e);
+  }
+}
+
+/* ---------- 設定パネル ---------- */
+const panel = $("panel");
+let closeTimer = null;
+function armAutoClose() {
+  clearTimeout(closeTimer);
+  closeTimer = setTimeout(closePanel, CONFIG.PANEL_AUTOCLOSE_SEC * 1000);
+}
+function openPanel() { panel.classList.add("open"); armAutoClose(); }
+function closePanel() { panel.classList.remove("open"); clearTimeout(closeTimer); }
+
+document.addEventListener("click", e => {
+  if (panel.contains(e.target)) return;
+  panel.classList.contains("open") ? closePanel() : openPanel();
+});
+panel.addEventListener("click", e => {
+  armAutoClose();
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.dataset.tab) {
+    document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === t));
+    document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("on", x.dataset.page === t.dataset.tab));
+    return;
+  }
+  const grp = t.closest("[data-choice]");
+  if (grp) { S[grp.dataset.choice] = t.dataset.val; }
+  else if (t.dataset.toggle) { S[t.dataset.toggle] = !S[t.dataset.toggle]; }
+  else if (t.id === "reset") { S = Object.assign({}, DEFAULTS); }
+  else if (t.id === "close") { closePanel(); return; }
+  else return;
+  save(); applySettings();
+});
+panel.addEventListener("input", e => {
+  armAutoClose();
+  const k = e.target.dataset.key;
+  if (!k || !(k in SLIDERS)) return;
+  S[k] = parseFloat(e.target.value);
+  save(); applySettings();
+});
+
+/* ---------- 起動 ---------- */
+applySettings();
+requestAnimationFrame(tick);
+loadWeather();
+setInterval(loadWeather, CONFIG.WEATHER_REFRESH_MIN * 60000);
+setTimeout(() => location.reload(), 6 * 3600 * 1000); // メモリ対策で6時間ごとに再読込
+</script>
+</body>
+</html>
