@@ -8,14 +8,15 @@
 :root{
   --bg:#0b0d12; --fg:#e8ecf3; --dim:#8892a6; --accent:#6ea8ff; --card:#141824; --row:rgba(255,255,255,.05);
   --line:rgba(255,255,255,.14); --sec:#ff8a5c;
+  --onaccent:#0b0d12;   /* アクセント色の上に載せる文字（ダーク系は明るい青なので暗い文字） */
   --fs:1; --cs:1; --nw:300; --m:1.2;
-  --subh:calc(8.5vh * var(--fs));
+  --subh:0vh;   /* 時計の下に取る高さ（天気を隠したときの日付だけ） */
   --font:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
 }
 :root[data-theme="amoled"]{ --bg:#000; --card:#0c0c0e; --row:rgba(255,255,255,.06); }
 :root[data-theme="light"]{
   --bg:#f3f5f9; --fg:#1a2030; --dim:#5d6677; --accent:#2a6bd6; --card:#ffffff;
-  --row:rgba(0,0,0,.05); --line:rgba(0,0,0,.16);
+  --row:rgba(0,0,0,.05); --line:rgba(0,0,0,.16); --onaccent:#fff;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;
@@ -34,23 +35,22 @@ body{--side:calc(min(var(--ih, 100vh) - 2 * var(--m) * 1vh - var(--subh), var(--
   --rw:calc(var(--iw, 100vw) - var(--side) - 2vw - var(--m) * 1.8vw)}   /* 右カラムの幅 */
 #vhprobe{position:fixed;left:0;top:0;width:0;height:100vh;visibility:hidden;pointer-events:none}
 #face{width:var(--side);height:var(--side);flex:0 0 auto}
-body.no-digital{--subh:0vh}
-body.no-weather{--subh:calc(15.5vh * var(--fs))}
-body.no-weather.no-digital, body.no-weather.no-date{--subh:calc(8.5vh * var(--fs))}
-body.no-weather.no-digital.no-date{--subh:0vh}
+body.no-weather{--subh:calc(8.5vh * var(--fs))}
+body.no-weather.no-date{--subh:0vh}
 .sub{margin-top:1.4vh;text-align:center;line-height:1.3}
 .sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs));font-weight:700}
-.sub .dig{font-size:calc(min(2.6vw,4.8vh) * var(--fs));color:var(--dim);font-variant-numeric:tabular-nums}
 .topline{display:flex;align-items:center;gap:1vw;flex:0 0 auto;padding:0 .6vw;min-width:0}
 .rdate{font-size:calc(min(var(--rw) * .08, 8.6vh) * var(--fs));line-height:1.1;flex:0 0 auto;white-space:nowrap;font-weight:700}
 #date2{display:none}
 body.no-weather #date2{display:block}
-body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
+body.no-date #date, body.no-date #date2, body.no-digital #dig2{display:none}
 
 /* 文字盤の配色 */
 .tk-major{stroke:var(--fg)} .tk-minor{stroke:var(--dim)}
 .num{fill:var(--fg);font-family:var(--font);font-weight:var(--nw);
   stroke:var(--bg);paint-order:stroke;stroke-linejoin:round}   /* 背景色のふちで、針の上でも読めるようにする */
+.dial-dig{fill:var(--dim);font-family:var(--font);font-variant-numeric:tabular-nums;
+  stroke:var(--bg);paint-order:stroke;stroke-linejoin:round}   /* 文字盤の中のデジタル時刻（数字と同じく針の上） */
 .hand-tip{display:none;fill:var(--bg);stroke:var(--fg);stroke-width:2.2}
 body.hs-tip .hand-tip{display:inline}
 .hand{stroke:var(--fg)}
@@ -90,7 +90,7 @@ body.no-hourly .hourly{display:none}
 .cal > div{display:flex;align-items:center;justify-content:center;border-radius:1vh;min-height:0}
 .cal .wd{color:var(--dim);font-size:.8em}
 .cal .sun{color:#ff7a7a} .cal .sat{color:var(--accent)}
-.cal .today{background:var(--accent);color:#fff;font-weight:700}
+.cal .today{background:var(--accent);color:var(--onaccent);font-weight:700}
 .msg{color:var(--dim);font-size:calc(min(2.2vw,4vh) * var(--fs))}
 
 /* 設定パネル（画面をタップで開閉） */
@@ -143,11 +143,11 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
         <circle class="hand-tip" cx="100" cy="26" r="5.5"/></g>
       <g id="sh"><line class="sechand" x1="100" y1="112" x2="100" y2="22" stroke-width="1.5" stroke-linecap="round"/></g>
       <g id="nums"></g><!-- 数字は針より上に描く（重なっても読めるように） -->
+      <text id="dig2" class="dial-dig" x="100" y="135" text-anchor="middle" dominant-baseline="central"></text>
       <circle class="pivot" cx="100" cy="100" r="4"/>
     </svg>
     <div class="sub">
       <div class="date" id="date2"></div>
-      <div class="dig" id="dig"></div>
     </div>
   </section>
   <section class="right">
@@ -380,6 +380,11 @@ function drawFace() {
     t.textContent = n;
     gn.appendChild(t);
   }
+  // デジタル時刻は中心と「6」のあいだ。大きさは数字に合わせる
+  const dg = $("dig2"), fsz = S.ns * 0.85;
+  dg.setAttribute("y", (100 + (92 - inset) * 0.55).toFixed(2));
+  dg.setAttribute("font-size", fsz.toFixed(1));
+  dg.setAttribute("stroke-width", (fsz * 0.22).toFixed(1));
 }
 
 /* ---------- 時計 ---------- */
@@ -400,7 +405,7 @@ function tick() {
     lastMin = d.getMinutes();
     const ds = `${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`;
     $("date").textContent = ds; $("date2").textContent = ds;
-    $("dig").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    $("dig2").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     // 焼き付き防止：毎分わずかに位置をずらす
     const dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 12 - 6);
     $("wrap").style.transform = `translate(${dx}px, ${dy}px)`;
