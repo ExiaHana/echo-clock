@@ -8,7 +8,8 @@
 :root{
   --bg:#0b0d12; --fg:#e8ecf3; --dim:#8892a6; --accent:#6ea8ff; --card:#141824; --row:rgba(255,255,255,.05);
   --line:rgba(255,255,255,.14); --sec:#ff8a5c;
-  --fs:1; --cs:1; --nw:300; --plate:var(--bg);
+  --fs:1; --cs:1; --nw:300; --m:1.2; --plate:var(--bg);
+  --subh:calc(8.5vh * var(--fs));
   --font:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
 }
 :root[data-theme="amoled"]{ --bg:#000; --card:#0c0c0e; --row:rgba(255,255,255,.06); }
@@ -21,15 +22,19 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--fg);overflow:h
   font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
   -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 body.night #wrap{opacity:.55}
-#wrap{font-family:var(--font);width:100%;height:100%;display:grid;grid-template-columns:auto 1fr;gap:2.4vw;
-  padding:2.4vh 2.2vw;transition:transform 2s ease,opacity 2s ease}
+#wrap{font-family:var(--font);width:100%;height:100%;display:grid;grid-template-columns:auto 1fr;gap:2vw;
+  padding:calc(var(--m) * 1vh) calc(var(--m) * 0.9vw);transition:transform 2s ease,opacity 2s ease}
 body.no-weather #wrap{grid-template-columns:1fr}
 body.no-weather .right{display:none}
 
 /* 左: アナログ時計 */
 .clock{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:0;min-height:0}
-#face{width:calc(min(46vw,84vh) * var(--cs));height:calc(min(46vw,84vh) * var(--cs));
-  max-height:calc(100% - 9vh);flex:0 1 auto}
+#face{--side:calc(min(100vh - 2 * var(--m) * 1vh - var(--subh), 56vw) * var(--cs));
+  width:var(--side);height:var(--side);flex:0 0 auto}
+body.no-digital{--subh:0vh}
+body.no-weather{--subh:calc(15.5vh * var(--fs))}
+body.no-weather.no-digital, body.no-weather.no-date{--subh:calc(8.5vh * var(--fs))}
+body.no-weather.no-digital.no-date{--subh:0vh}
 .sub{margin-top:1.4vh;text-align:center;line-height:1.3}
 .sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs))}
 .sub .dig{font-size:calc(min(2.6vw,4.8vh) * var(--fs));color:var(--dim);font-variant-numeric:tabular-nums}
@@ -135,7 +140,9 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
     <div class="row"><div class="lb"><span>日付・天気の文字サイズ</span><span id="v-fs"></span></div>
       <input type="range" data-key="fs" min="0.7" max="1.5" step="0.05"></div>
     <div class="row"><div class="lb"><span>時計の大きさ</span><span id="v-cs"></span></div>
-      <input type="range" data-key="cs" min="0.6" max="1.2" step="0.05"></div>
+      <input type="range" data-key="cs" min="0.5" max="1" step="0.05"></div>
+    <div class="row"><div class="lb"><span>画面の余白</span><span id="v-mg"></span></div>
+      <input type="range" data-key="mg" min="0" max="5" step="0.2"></div>
     <div class="row"><div class="lb"><span>数字のサイズ</span><span id="v-ns"></span></div>
       <input type="range" data-key="ns" min="10" max="28" step="1"></div>
     <div class="row"><div class="lb"><span>数字の太さ</span><span id="v-nw"></span></div>
@@ -200,7 +207,7 @@ const CONFIG = {
   PANEL_AUTOCLOSE_SEC: 30
 };
 const DEFAULTS = {
-  fs: 1, cs: 1, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
+  fs: 1, cs: 1, mg: 1.2, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
   theme: "dark", sec: "#ff8a5c",
   nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true
 };
@@ -220,6 +227,7 @@ const HANDS = {   // hw=時針の太さ mw=分針の太さ tip=先端に丸
 const SLIDERS = {   // 設定キー: 表示フォーマット
   fs: v => Math.round(v * 100) + "%",
   cs: v => Math.round(v * 100) + "%",
+  mg: v => v.toFixed(1),
   ns: v => String(v),
   nw: v => String(v)
 };
@@ -251,6 +259,7 @@ function applySettings() {
   const root = document.documentElement;
   root.style.setProperty("--fs", S.fs);
   root.style.setProperty("--cs", S.cs);
+  root.style.setProperty("--m", S.mg);
   root.style.setProperty("--sec", S.sec);
   root.style.setProperty("--nw", S.nw);
   root.style.setProperty("--font", FONTS[S.font]);
