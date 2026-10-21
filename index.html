@@ -192,6 +192,8 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
       <input type="range" data-key="ns" min="10" max="28" step="1"></div>
     <div class="row"><div class="lb"><span>数字の太さ</span><span id="v-nw"></span></div>
       <input type="range" data-key="nw" min="100" max="900" step="100"></div>
+    <div class="row"><div class="lb"><span>太い目盛りの長さ</span><span id="v-tl"></span></div>
+      <input type="range" data-key="tl" min="4" max="24" step="1"></div>
   </div>
 
   <div class="tabpage" data-page="design">
@@ -283,7 +285,7 @@ const CONFIG = {
   PANEL_AUTOCLOSE_SEC: 30
 };
 const DEFAULTS = {
-  ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, font: "gothic", hands: "std",
+  ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, tl: 10, font: "gothic", hands: "std",   // tl=太い目盛りの長さ
   theme: "dark", sec: "#ff8a5c", lower: "days",   // lower=天気の下の欄（days=日ごとの天気 / cal=カレンダー）
   digStyle: "std", digFmt: "24", digFont: "std",   // 文字盤の中のデジタル時刻（見た目 / 表し方 / 文字）
   nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true,
@@ -308,7 +310,8 @@ const SLIDERS = {   // 設定キー: 表示フォーマット
   mg: v => v.toFixed(1),
   hc: v => v + "時間",
   ns: v => String(v),
-  nw: v => String(v)
+  nw: v => String(v),
+  tl: v => String(v)
 };
 const STORE_KEY = "echoDash.v1";
 /* ======================================== */
@@ -393,7 +396,7 @@ function drawFace() {
   const NS = "http://www.w3.org/2000/svg", g = $("ticks"), gn = $("nums");
   g.textContent = ""; gn.textContent = "";
   for (let i = 0; i < 60; i++) {
-    const major = i % 5 === 0, len = major ? 10 : 5;
+    const major = i % 5 === 0, len = major ? S.tl : 5;
     const p = boundary(i * 6 * Math.PI / 180, 0);
     const ox = p.x, oy = p.y;                                  // 目盛りは中心に向かって放射状
     const ln = document.createElementNS(NS, "line");
@@ -404,7 +407,7 @@ function drawFace() {
     ln.setAttribute("stroke-linecap", "round");
     g.appendChild(ln);
   }
-  const inset = 10 + 6 + S.ns * 0.6;                         // 数字は目盛りの内側の円の上に並べる
+  const inset = Math.max(S.tl, 5) + 6 + S.ns * 0.6;          // 数字は目盛りの内側の円の上に並べる（目盛りを伸ばすと内側へ寄る）
   for (let n = 1; n <= 12; n++) {
     const p = boundary(n * 30 * Math.PI / 180, inset);
     const t = document.createElementNS(NS, "text");
