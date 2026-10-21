@@ -33,7 +33,10 @@ body.no-weather .right{display:none}
 .sub{margin-top:1.4vh;text-align:center;line-height:1.3}
 .sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs))}
 .sub .dig{font-size:calc(min(2.2vw,4vh) * var(--fs));color:var(--dim);font-variant-numeric:tabular-nums}
-body.no-date #date, body.no-digital #dig{display:none}
+.rdate{font-size:calc(min(3.2vw,6vh) * var(--fs));line-height:1.2;padding:0 .4vw}
+#date2{display:none}
+body.no-weather #date2{display:block}
+body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
 
 /* 文字盤の配色 */
 .tk-major{stroke:var(--fg)} .tk-minor{stroke:var(--dim)}
@@ -111,11 +114,12 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
       <circle class="pivot" cx="100" cy="100" r="4"/>
     </svg>
     <div class="sub">
-      <div class="date" id="date"></div>
+      <div class="date" id="date2"></div>
       <div class="dig" id="dig"></div>
     </div>
   </section>
   <section class="right">
+    <div class="rdate" id="date"></div>
     <div class="card" id="weather"><div class="msg">天気を取得中…</div></div>
   </section>
 </div>
@@ -352,7 +356,8 @@ function tick() {
 
   if (d.getMinutes() !== lastMin) {
     lastMin = d.getMinutes();
-    $("date").textContent = `${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`;
+    const ds = `${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`;
+    $("date").textContent = ds; $("date2").textContent = ds;
     $("dig").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     // 焼き付き防止：毎分わずかに位置をずらす
     const dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 12 - 6);
