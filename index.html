@@ -29,8 +29,10 @@ body.no-weather .right{display:none}
 
 /* 左: アナログ時計 */
 .clock{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;min-width:0;min-height:0}
-body{--side:calc(min(100vh - 2 * var(--m) * 1vh - var(--subh), 56vw) * var(--cs));
-  --rw:calc(100vw - var(--side) - 2vw - var(--m) * 1.8vw)}   /* 右カラムの幅 */
+/* --ih/--iw はページが測った窓の高さ・幅（全画面の切り替え後に Silk の 100vh が古いままのことがあるため） */
+body{--side:calc(min(var(--ih, 100vh) - 2 * var(--m) * 1vh - var(--subh), var(--iw, 100vw) * .56) * var(--cs));
+  --rw:calc(var(--iw, 100vw) - var(--side) - 2vw - var(--m) * 1.8vw)}   /* 右カラムの幅 */
+#vhprobe{position:fixed;left:0;top:0;width:0;height:100vh;visibility:hidden;pointer-events:none}
 #face{width:var(--side);height:var(--side);flex:0 0 auto}
 body.no-digital{--subh:0vh}
 body.no-weather{--subh:calc(15.5vh * var(--fs))}
@@ -216,6 +218,7 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
     <div class="row"><div class="lb">状態</div>
       <div class="stat"><span>全画面</span><b id="st-fs"></b></div>
       <div class="stat"><span>常時表示（無音再生）</span><b id="st-au"></b></div>
+      <div class="stat"><span>画面の大きさ（調査用）</span><b id="st-sz"></b></div>
       <div id="st-note"></div>
       <div class="tgs" style="grid-template-columns:1fr 1fr;margin-top:.6vh">
         <button class="tg" id="au-btn">無音再生を開始／再開</button>
@@ -230,6 +233,7 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
   </div>
 </div>
 
+<div id="vhprobe"></div>
 <div id="banner" role="alert">
   <div class="bmsg" id="b-msg"></div>
   <div class="bt">
@@ -566,7 +570,30 @@ function fitHourly() {
   const px = Math.max(10, Math.min(cellW / 2.5, innerHeight * 0.055)) / (S.fs || 1);
   h.style.setProperty("--hf", px.toFixed(1) + "px");
 }
-window.addEventListener("resize", fitHourly);
+
+// 窓の大きさを測り直して、時計と右の欄の大きさに使う。測った値は状態の欄にも出す（崩れたときの調査用）。
+// 全画面の切り替え直後は値が落ち着かないことがあるので、少しずつ間をあけて何度か測る。
+function measure() {
+  const w = innerWidth, h = innerHeight, root = document.documentElement;
+  root.style.setProperty("--iw", w + "px");
+  root.style.setProperty("--ih", h + "px");
+  root.style.height = h + "px"; document.body.style.height = h + "px";
+  fitHourly();
+  const vv = window.visualViewport;
+  $("st-sz").textContent = "窓 " + w + "×" + h + " / vh " + $("vhprobe").offsetHeight +
+    " / 表示域 " + root.clientHeight + (vv ? " / 見える範囲 " + Math.round(vv.width) + "×" + Math.round(vv.height) : "") +
+    " / 画面 " + screen.width + "×" + screen.height;
+}
+let measureTimers = [];
+function measureSoon() {
+  measureTimers.forEach(clearTimeout);
+  measure();
+  measureTimers = [300, 1000, 2500].map(ms => setTimeout(measure, ms));
+}
+window.addEventListener("resize", measureSoon);
+["fullscreenchange", "webkitfullscreenchange"].forEach(ev => document.addEventListener(ev, measureSoon));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) measureSoon(); });
+setInterval(measure, 10000);   // 合図が来ない場合の念のため
 
 async function loadWeather() {
   const url = "https://api.open-meteo.com/v1/forecast?latitude=" + CONFIG.LAT + "&longitude=" + CONFIG.LON +
@@ -845,6 +872,7 @@ if (IS_SILK) {
 
 /* ---------- 起動 ---------- */
 applySettings();
+measure();
 requestAnimationFrame(tick);
 loadWeather();
 setInterval(loadWeather, CONFIG.WEATHER_REFRESH_MIN * 60000);
