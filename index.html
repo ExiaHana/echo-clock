@@ -37,10 +37,10 @@ body.no-weather{--subh:calc(15.5vh * var(--fs))}
 body.no-weather.no-digital, body.no-weather.no-date{--subh:calc(8.5vh * var(--fs))}
 body.no-weather.no-digital.no-date{--subh:0vh}
 .sub{margin-top:1.4vh;text-align:center;line-height:1.3}
-.sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs))}
+.sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs));font-weight:700}
 .sub .dig{font-size:calc(min(2.6vw,4.8vh) * var(--fs));color:var(--dim);font-variant-numeric:tabular-nums}
 .topline{display:flex;align-items:center;gap:1vw;flex:0 0 auto;padding:0 .6vw;min-width:0}
-.rdate{font-size:calc(min(var(--rw) * .08, 8.6vh) * var(--fs));line-height:1.1;flex:0 0 auto;white-space:nowrap}
+.rdate{font-size:calc(min(var(--rw) * .08, 8.6vh) * var(--fs));line-height:1.1;flex:0 0 auto;white-space:nowrap;font-weight:700}
 #date2{display:none}
 body.no-weather #date2{display:block}
 body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
@@ -48,7 +48,7 @@ body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
 /* 文字盤の配色 */
 .tk-major{stroke:var(--fg)} .tk-minor{stroke:var(--dim)}
 .num{fill:var(--fg);font-family:var(--font);font-weight:var(--nw)}
-.plate{fill:var(--card);stroke:var(--line);stroke-width:1.5}
+.plate{fill:var(--card)}
 .hand-tip{display:none;fill:var(--plate);stroke:var(--fg);stroke-width:2.2}
 body.hs-tip .hand-tip{display:inline}
 .hand{stroke:var(--fg)}
@@ -91,6 +91,19 @@ body.no-hourly .hourly{display:none}
   border:1px solid var(--line);border-radius:2vh;padding:1.6vh 1.6vw;
   box-shadow:0 1vh 4vh rgba(0,0,0,.45);font-size:min(2vw,3.7vh);-webkit-user-select:none}
 #panel.open{display:block}
+#banner{display:none;position:fixed;left:50%;bottom:2.4vh;transform:translateX(-50%);z-index:20;width:min(92vw,900px);
+  background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:2vh;padding:1.6vh 1.6vw;
+  box-shadow:0 1vh 4vh rgba(0,0,0,.5);font-size:min(2.2vw,4vh);-webkit-user-select:none}
+#banner.open{display:block}
+#banner .bmsg{margin-bottom:1vh;line-height:1.35}
+#banner .bt{display:flex;gap:.8vw}
+#banner button{flex:1;min-height:min(8vh,48px);border:1px solid var(--line);background:var(--row);color:var(--fg);
+  border-radius:1.2vh;font:inherit;font-size:.9em;padding:0 .6vw}
+#banner button.main{background:var(--accent);border-color:var(--accent);color:#fff;flex:2}
+.stat{display:flex;justify-content:space-between;gap:1vw;font-size:.82em;padding:.3vh 0}
+.stat b{font-weight:500;text-align:right}
+.stat b.warn{color:#ffb86e}
+#st-note{color:var(--dim);font-size:.74em;min-height:1.2em}
 .tabs{margin-bottom:.6vh}
 .tabpage{display:none}
 .tabpage.on{display:block}
@@ -195,12 +208,29 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
         <button class="tg" data-toggle="hourly">1時間ごと天気</button>
         <button class="tg" data-toggle="night">夜間の減光</button>
       </div></div>
+    <div class="row"><div class="lb">状態</div>
+      <div class="stat"><span>全画面</span><b id="st-fs"></b></div>
+      <div class="stat"><span>常時表示（無音再生）</span><b id="st-au"></b></div>
+      <div id="st-note"></div>
+      <div class="tgs" style="grid-template-columns:1fr 1fr;margin-top:.6vh">
+        <button class="tg" id="au-btn">無音再生を開始／再開</button>
+        <button class="tg" id="reload">ページを再読み込み</button>
+      </div></div>
   </div>
 
   <div class="acts">
     <button class="act" id="fs">全画面</button>
     <button class="act" id="reset">初期設定に戻す</button>
     <button class="act close" id="close">閉じる</button>
+  </div>
+</div>
+
+<div id="banner" role="alert">
+  <div class="bmsg" id="b-msg"></div>
+  <div class="bt">
+    <button class="main" id="b-go">タップして復帰</button>
+    <button id="b-nofs">全画面を使わない</button>
+    <button id="b-later">あとで</button>
   </div>
 </div>
 
@@ -215,7 +245,8 @@ const CONFIG = {
 const DEFAULTS = {
   ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
   theme: "dark", sec: "#ff8a5c",
-  nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true
+  nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true,
+  fsWanted: false   // 全画面を使う意思（設定ボタンで入れた/解除した状態。初期化では変えない）
 };
 const FONTS = {   // 端末内蔵フォントのみ（無い環境では次の候補に自動で切り替わります）
   gothic: '"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif',
@@ -255,6 +286,7 @@ try {
 } catch (_) {}
 if (storedVer < 2) { S.hc = DEFAULTS.hc; S.ver = DEFAULTS.ver; }   // 旧設定の移行（表示数を6に）
 function sanitize() {
+  S.fsWanted = !!S.fsWanted;
   if (!FONTS[S.font]) S.font = DEFAULTS.font;
   if (!HANDS[S.hands]) S.hands = DEFAULTS.hands;
   if (["round", "square", "rounded"].indexOf(S.shape) < 0) S.shape = DEFAULTS.shape;
@@ -486,29 +518,16 @@ function openPanel() { panel.classList.add("open"); armAutoClose(); }
 function closePanel() { panel.classList.remove("open"); clearTimeout(closeTimer); }
 
 document.addEventListener("click", e => {
-  if (panel.contains(e.target)) return;
+  if (panel.contains(e.target) || $("banner").contains(e.target)) return;
   panel.classList.contains("open") ? closePanel() : openPanel();
 });
-// 全画面の切り替え（ブラウザが対応していない場合はボタンに表示）
-function toggleFullscreen(btn) {
-  const d = document, root = d.documentElement;
-  const cur = d.fullscreenElement || d.webkitFullscreenElement;
-  const req = root.requestFullscreen || root.webkitRequestFullscreen;
-  const exit = d.exitFullscreen || d.webkitExitFullscreen;
-  const note = msg => { const old = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = old; }, 2500); };
-  try {
-    if (cur) { exit.call(d); return; }
-    if (!req) { note("この端末では使えません"); return; }
-    const p = req.call(root);
-    if (p && p.catch) p.catch(() => note("この端末では使えません"));
-    closePanel();
-  } catch (_) { note("この端末では使えません"); }
-}
 panel.addEventListener("click", e => {
   armAutoClose();
   const t = e.target.closest("button");
   if (!t) return;
-  if (t.id === "fs") { toggleFullscreen(t); return; }
+  if (t.id === "fs") { onFsButton(); return; }
+  if (t.id === "au-btn") { auResume(); return; }
+  if (t.id === "reload") { location.reload(); return; }
   if (t.dataset.tab) {
     document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === t));
     document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("on", x.dataset.page === t.dataset.tab));
@@ -517,7 +536,7 @@ panel.addEventListener("click", e => {
   const grp = t.closest("[data-choice]");
   if (grp) { S[grp.dataset.choice] = t.dataset.val; }
   else if (t.dataset.toggle) { S[t.dataset.toggle] = !S[t.dataset.toggle]; }
-  else if (t.id === "reset") { S = Object.assign({}, DEFAULTS); }
+  else if (t.id === "reset") { S = Object.assign({}, DEFAULTS, { fsWanted: S.fsWanted }); }
   else if (t.id === "close") { closePanel(); return; }
   else return;
   save(); applySettings();
@@ -530,45 +549,224 @@ panel.addEventListener("input", e => {
   save(); applySettings();
 });
 
-/* ---------- Silk がホーム画面に戻らないようにする ----------
-   Echo Show の Silk は、操作がないと数分でホームへ戻ります。
-   無音の音声をループ再生して「使用中」と見せます（外部スクリプトは使わず、無音データはここで生成）。
-   ブラウザの制限で、ページを開いた後に画面を1回タップするまで有効になりません。 */
+/* ================= 全画面と常時表示（無音再生）の維持 =================
+   Amazon 非公式の回避策です。Echo Show 5 第1世代の Silk で効くことは保証できません。
+   ・全画面：Fullscreen API を使う。要求はユーザー操作が必要なため、自動復帰を拒否されたら「タップで復帰」を出す。
+   ・常時表示：無音の音声をループ再生して「使用中」に見せる（外部スクリプトなし、無音データはここで生成）。
+   全画面の復帰と無音再生の再開は、互いに独立して成功・失敗を扱う。 */
 const IS_SILK = /silk/i.test(navigator.userAgent);
-(function keepSilkAwake() {
-  if (!IS_SILK) return;
-  function silentWavUrl(sec, rate) {
-    const n = sec * rate, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
-    const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
-    w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVE"); w(12, "fmt ");
-    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-    v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
-    w(36, "data"); v.setUint32(40, n, true);
-    new Uint8Array(buf, 44).fill(128);              // 8bit PCM の無音は 128
-    return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+const nowMs = () => Date.now();
+
+/* ---------- 全画面 ---------- */
+const fsRoot = document.documentElement;
+const fsReq = fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen;
+const fsExitFn = document.exitFullscreen || document.webkitExitFullscreen;
+const fsActive = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+const fsState = { supported: !!fsReq, busy: false, lastAuto: 0, err: "" };
+
+// 全画面を要求する。ユーザー操作のイベント内から呼ぶと、要求は同期的に（await より前に）行われる。
+// 成否は Promise の結果ではなく、実際の状態（fullscreenElement）で判定する。重複呼び出しは busy で無視する。
+function fsRequest(auto) {
+  if (!fsState.supported) { fsState.err = "非対応"; return Promise.resolve(false); }
+  if (fsActive()) return Promise.resolve(true);
+  if (fsState.busy) return Promise.resolve(false);
+  if (auto && nowMs() - fsState.lastAuto < 1000) return Promise.resolve(false);   // 自動の連打を防ぐ
+  fsState.busy = true; if (auto) fsState.lastAuto = nowMs();
+  let p;
+  try { p = fsReq.call(fsRoot); }
+  catch (e) { fsState.busy = false; fsState.err = (e && e.name) || "例外"; refreshStatus(); return Promise.resolve(false); }
+  // 要求の Promise が決着しない場合に busy が残り続けないよう、3秒で打ち切る
+  const timeout = new Promise(r => setTimeout(() => r("timeout"), 3000));
+  return Promise.race([Promise.resolve(p).then(() => "ok"), timeout])
+    .then(v => { if (v === "timeout") fsState.err = "応答なし"; },
+          e => { fsState.err = (e && e.name) || "拒否"; })
+    .then(() => new Promise(r => setTimeout(r, 400)))          // fullscreenchange の反映を待つ
+    .then(() => {
+      fsState.busy = false;
+      const ok = fsActive();
+      fsState.err = ok ? "" : (fsState.err || "反映されず");
+      refreshStatus();
+      return ok;
+    });
+}
+const fsNeeded = () => S.fsWanted && fsState.supported && !fsActive() && !fsState.busy && !document.hidden;
+
+// 設定ボタン：入っていれば解除（意図的な解除＝自動復帰を止める）、入っていなければ全画面にする
+function onFsButton() {
+  if (fsState.busy) return;   // 処理中の連打は無視する（失敗扱いにすると自動復帰の意思まで消えるため）
+  if (fsActive()) {
+    S.fsWanted = false; save();
+    try { fsExitFn.call(document); } catch (_) {}
+    refreshStatus();
+    return;
   }
-  const audio = document.createElement("audio");
-  audio.src = silentWavUrl(2, 8000);
-  audio.muted = true; audio.autoplay = true;
-  audio.setAttribute("playsinline", "");
-  document.body.appendChild(audio);
-  const play = () => { try { const p = audio.play(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
-  audio.addEventListener("ended", () => { audio.currentTime = 0; play(); });
-  const wake = () => { try { if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(() => {}); } catch (_) {} };
+  S.fsWanted = true; save();
+  fsRequest(false).then(ok => {
+    if (!ok) { S.fsWanted = false; save(); showNote("全画面にできませんでした（" + fsState.err + "）"); }
+    refreshStatus();
+  });
+}
+function fsGiveUp() { S.fsWanted = false; save(); refreshStatus(); }       // 「全画面を使わない」
+
+/* ---------- 無音再生 ---------- */
+const au = { el: null, url: "", started: false, status: IS_SILK ? "idle" : "off", err: "",
+             busy: false, lastTry: 0, lastT: -1, stalls: 0, rebuilds: 0 };
+let auFirstOff = null;        // 初回タップの見張りを外す処理（再生中になったら auEval から呼ぶ）
+function silentWavUrl(sec, rate) {
+  const n = sec * rate, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  w(36, "data"); v.setUint32(40, n, true);
+  new Uint8Array(buf, 44).fill(128);                       // 8bit PCM の無音は 128
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+function auEval() {           // 実際の再生状態から「開始待ち／再生中／再開が必要」を決める
+  const a = au.el;
+  let st;
+  if (!IS_SILK) st = "off";
+  else if (!a) st = au.started ? "needs" : "idle";
+  else if (a.error) st = "needs";
+  else if (!au.started) st = "idle";
+  else if (a.paused || a.ended || a.muted || au.stalls >= 2) st = "needs";
+  else st = "playing";
+  if (st === "playing") {
+    au.rebuilds = 0; au.err = "";
+    if (auFirstOff) { auFirstOff(); auFirstOff = null; }   // 作り直した音声でも、初回タップの見張りを外す
+  }
+  if (st !== au.status) { au.status = st; }
+  refreshStatus();
+}
+function auCreate() {
+  if (au.el) { try { au.el.pause(); } catch (_) {} try { au.el.remove(); } catch (_) {} }
+  const a = document.createElement("audio");
+  if (!au.url) au.url = silentWavUrl(2, 8000);
+  a.src = au.url; a.muted = !au.started; a.autoplay = true;
+  a.setAttribute("playsinline", "");
+  a.addEventListener("playing", auEval);
+  a.addEventListener("volumechange", auEval);
+  a.addEventListener("pause", () => { auEval(); if (!a.ended) autoRecoverAudio(); });
+  a.addEventListener("ended", () => { try { a.currentTime = 0; } catch (_) {} auPlay(); });
+  a.addEventListener("error", () => {
+    auEval();
+    if (au.rebuilds++ < 3) setTimeout(() => { auCreate(); auPlay(); }, 500);   // 作り直しは3回まで
+  });
+  document.body.appendChild(a);
+  au.el = a;
+}
+// 再生を試みる。失敗は握りつぶさず、理由を au.err に残して状態に反映する。
+function auPlay() {
+  if (!au.el) auCreate();
+  au.lastTry = nowMs();
+  let p;
+  try { p = au.el.play(); }
+  catch (e) { au.err = (e && e.name) || "例外"; auEval(); return Promise.resolve(false); }
+  return Promise.resolve(p).then(
+    () => { au.err = ""; auEval(); return true; },
+    e => { au.err = (e && e.name) || "拒否"; auEval(); return false; });
+}
+// ユーザー操作から呼ぶ（開始・再開）。ミュートを外して再生する。
+function auResume() {
+  if (!IS_SILK) { showNote("Silk 以外では無音再生は不要です"); return Promise.resolve(false); }
+  au.started = true;
+  if (!au.el || au.el.error) auCreate();
+  au.el.muted = false;
+  return auPlay();
+}
+// 自動での再開（操作なし）。拒否されたら「再開が必要」の表示のまま。
+function autoRecoverAudio(force) {
+  if (!IS_SILK || !au.started || au.busy) return;
+  if (!force && nowMs() - au.lastTry < 3000) return;       // pause/見張り由来の連打を防ぐ（復帰イベント由来は force）
+  au.busy = true;
+  Promise.resolve().then(() => { if (!au.el || au.el.error) auCreate(); au.el.muted = false; return auPlay(); })
+    .catch(() => {}).then(() => { au.busy = false; });
+}
+function wake() { try { if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(() => {}); } catch (_) {} }
+
+/* ---------- 状態表示・復帰案内 ---------- */
+let noteTimer = null;
+function showNote(msg, ms) {
+  const n = $("st-note"); if (!n) return;
+  n.textContent = msg; clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => { n.textContent = ""; }, ms || 6000);
+}
+let snoozed = false;
+function refreshStatus() {
+  // 全画面
+  const fsTxt = !fsState.supported ? "非対応" : fsActive() ? "全画面中" : S.fsWanted ? "復帰が必要" : "通常表示";
+  $("st-fs").textContent = fsTxt;
+  $("st-fs").className = (S.fsWanted && !fsActive() && fsState.supported) ? "warn" : "";
+  $("fs").textContent = fsActive() ? "全画面を解除" : "全画面にする";
+  // 無音再生
+  const auTxt = { off: "Silk 以外では不要", idle: "開始待ち（1回タップ）", playing: "再生中", needs: "再開が必要" }[au.status];
+  $("st-au").textContent = auTxt + (au.status === "needs" && au.err ? "（" + au.err + "）" : "");
+  $("st-au").className = au.status === "needs" ? "warn" : "";
+  // 復帰案内
+  const needFs = fsNeeded(), needAu = IS_SILK && au.started && au.status === "needs";
+  const b = $("banner");
+  if ((needFs || needAu) && !snoozed) {
+    const msgs = [];
+    if (needFs) msgs.push("全画面が解除されました。");
+    if (needAu) msgs.push("常時表示用の無音再生が止まりました。");
+    $("b-msg").textContent = msgs.join(" ") + "下のボタンをタップして復帰してください。";
+    $("b-nofs").style.display = needFs ? "" : "none";
+    b.classList.add("open");
+  } else b.classList.remove("open");
+}
+// 復帰ボタン：全画面と無音再生を、同じタップの中で互いに独立して要求する（片方の失敗で他方を止めない）
+$("b-go").addEventListener("click", () => {
+  const needFs = fsNeeded(), needAu = IS_SILK && au.started && au.status === "needs";
+  if (needFs) { try { fsRequest(false); } catch (_) {} }
+  if (needAu) { try { auResume(); } catch (_) {} }
+  wake();
+});
+$("b-nofs").addEventListener("click", fsGiveUp);
+$("b-later").addEventListener("click", () => { snoozed = true; refreshStatus(); setTimeout(() => { snoozed = false; refreshStatus(); }, 60000); });
+
+/* ---------- 復帰の検知（イベントが重複しても1回にまとめる） ---------- */
+let retTimer = null;
+function onReturn() { snoozed = false; clearTimeout(retTimer); retTimer = setTimeout(handleReturn, 350); }
+function handleReturn() {
+  if (document.hidden) return;
+  try { autoRecoverAudio(true); } catch (_) {}              // 音声と全画面は互いに独立
+  try {
+    if (S.fsWanted && fsState.supported && !fsActive()) fsRequest(true).then(refreshStatus);
+    else refreshStatus();
+  } catch (_) { refreshStatus(); }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { onReturn(); wake(); } });
+window.addEventListener("focus", onReturn);
+window.addEventListener("pageshow", onReturn);
+["fullscreenchange", "webkitfullscreenchange"].forEach(ev => document.addEventListener(ev, refreshStatus));
+
+/* ---------- 起動時の準備（Silk のみ） ---------- */
+if (IS_SILK) {
+  auCreate();
   const evs = ["pointerdown", "click", "keydown"];
-  const onFirst = () => { audio.muted = false; play(); wake(); };
-  audio.addEventListener("playing", () => { if (!audio.muted) evs.forEach(e => document.removeEventListener(e, onFirst)); });
+  const onFirst = () => { au.started = true; au.el.muted = false; auPlay(); wake(); };
+  auFirstOff = () => evs.forEach(e => document.removeEventListener(e, onFirst));
   evs.forEach(e => document.addEventListener(e, onFirst));
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { play(); wake(); } });
-  play();
-})();
+  auPlay();
+  setInterval(() => {                                       // 見張り：音が止まった／進んでいない場合を検出
+    if (!au.el || !au.started) return;
+    const t = au.el.currentTime;
+    au.stalls = (!au.el.paused && !au.el.ended && t === au.lastT) ? au.stalls + 1 : 0;
+    au.lastT = t;
+    auEval();
+    if (au.status !== "playing") autoRecoverAudio();
+  }, 4000);
+}
 
 /* ---------- 起動 ---------- */
 applySettings();
 requestAnimationFrame(tick);
 loadWeather();
 setInterval(loadWeather, CONFIG.WEATHER_REFRESH_MIN * 60000);
-if (!IS_SILK) setTimeout(() => location.reload(), 6 * 3600 * 1000); // メモリ対策で6時間ごとに再読込（Silkでは、再読込後に再タップが必要になるため行わない）
+// 6時間ごとの自動再読み込み：Silk 以外のみ。Silk では再読み込み後に全画面と無音再生の再タップが必要になるため行わない。
+// 重くなったら設定の「ページを再読み込み」を使う。
+if (!IS_SILK) setTimeout(() => location.reload(), 6 * 3600 * 1000);
+refreshStatus();
 </script>
 </body>
 </html>
