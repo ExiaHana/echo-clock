@@ -111,7 +111,7 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
 <body>
 <div id="wrap">
   <section class="clock">
-    <svg id="face" viewBox="0 0 200 200" aria-label="clock">
+    <svg id="face" viewBox="7 7 186 186" aria-label="clock">
       <g id="ticks"></g>
       <g id="hh"><line id="hhl" class="hand" x1="100" y1="100" x2="100" y2="52" stroke-width="5" stroke-linecap="round"/>
         <circle class="hand-tip" cx="100" cy="52" r="6.5"/></g>
@@ -301,7 +301,7 @@ function applySettings() {
 function boundary(theta, shape, inset) {
   const dx = Math.sin(theta), dy = -Math.cos(theta);
   if (shape === "round") {
-    const R = 94 - inset;
+    const R = 92 - inset;
     return { x: 100 + R * dx, y: 100 + R * dy, dx: dx, dy: dy };
   }
   const H = 92 - inset, rc = Math.max(0, (shape === "rounded" ? 34 : 0) - inset);
