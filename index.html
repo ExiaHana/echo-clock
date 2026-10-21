@@ -642,7 +642,8 @@ function auCreate() {
   if (au.el) { try { au.el.pause(); } catch (_) {} try { au.el.remove(); } catch (_) {} }
   const a = document.createElement("audio");
   if (!au.url) au.url = silentWavUrl(2, 8000);
-  a.src = au.url; a.muted = !au.started; a.autoplay = true;
+  // loop にする：末尾まで行くと一度 pause が出て「再開が必要」の案内が2秒ごとに一瞬出ていたため
+  a.src = au.url; a.muted = !au.started; a.autoplay = true; a.loop = true;
   a.setAttribute("playsinline", "");
   a.addEventListener("playing", auEval);
   a.addEventListener("volumechange", auEval);
