@@ -530,12 +530,45 @@ panel.addEventListener("input", e => {
   save(); applySettings();
 });
 
+/* ---------- Silk がホーム画面に戻らないようにする ----------
+   Echo Show の Silk は、操作がないと数分でホームへ戻ります。
+   無音の音声をループ再生して「使用中」と見せます（外部スクリプトは使わず、無音データはここで生成）。
+   ブラウザの制限で、ページを開いた後に画面を1回タップするまで有効になりません。 */
+const IS_SILK = /silk/i.test(navigator.userAgent);
+(function keepSilkAwake() {
+  if (!IS_SILK) return;
+  function silentWavUrl(sec, rate) {
+    const n = sec * rate, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVE"); w(12, "fmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+    w(36, "data"); v.setUint32(40, n, true);
+    new Uint8Array(buf, 44).fill(128);              // 8bit PCM の無音は 128
+    return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+  }
+  const audio = document.createElement("audio");
+  audio.src = silentWavUrl(2, 8000);
+  audio.muted = true; audio.autoplay = true;
+  audio.setAttribute("playsinline", "");
+  document.body.appendChild(audio);
+  const play = () => { try { const p = audio.play(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
+  audio.addEventListener("ended", () => { audio.currentTime = 0; play(); });
+  const wake = () => { try { if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(() => {}); } catch (_) {} };
+  const evs = ["pointerdown", "click", "keydown"];
+  const onFirst = () => { audio.muted = false; play(); wake(); };
+  audio.addEventListener("playing", () => { if (!audio.muted) evs.forEach(e => document.removeEventListener(e, onFirst)); });
+  evs.forEach(e => document.addEventListener(e, onFirst));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { play(); wake(); } });
+  play();
+})();
+
 /* ---------- 起動 ---------- */
 applySettings();
 requestAnimationFrame(tick);
 loadWeather();
 setInterval(loadWeather, CONFIG.WEATHER_REFRESH_MIN * 60000);
-setTimeout(() => location.reload(), 6 * 3600 * 1000); // メモリ対策で6時間ごとに再読込
+if (!IS_SILK) setTimeout(() => location.reload(), 6 * 3600 * 1000); // メモリ対策で6時間ごとに再読込（Silkでは、再読込後に再タップが必要になるため行わない）
 </script>
 </body>
 </html>
