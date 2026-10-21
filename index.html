@@ -38,7 +38,8 @@ body.no-weather.no-digital.no-date{--subh:0vh}
 .sub{margin-top:1.4vh;text-align:center;line-height:1.3}
 .sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs))}
 .sub .dig{font-size:calc(min(2.6vw,4.8vh) * var(--fs));color:var(--dim);font-variant-numeric:tabular-nums}
-.rdate{font-size:calc(min(3.4vw,6.2vh) * var(--fs));line-height:1.1;padding:0 .4vw;flex:0 0 auto}
+.topline{display:flex;align-items:center;gap:1.6vw;flex:0 0 auto;padding:0 .6vw;min-width:0}
+.rdate{font-size:calc(min(3.2vw,7.4vh) * var(--fs));line-height:1.1;flex:0 0 auto;white-space:nowrap}
 #date2{display:none}
 body.no-weather #date2{display:block}
 body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
@@ -59,23 +60,24 @@ body.no-second #sh{display:none}
 .right{display:flex;flex-direction:column;gap:1vh;min-width:0;min-height:0;height:var(--side)}
 .card{background:var(--card);border-radius:2.4vh;padding:2vh 1.8vw}
 #weather{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.now{display:flex;align-items:center;gap:1.6vw}
-.now .icon{font-size:calc(min(8.6vw,13vh) * var(--fs));line-height:1}
-.now .temp{font-size:calc(min(7vw,11.5vh) * var(--fs));font-weight:300;line-height:1}
-.now .label{font-size:calc(min(2.6vw,4.6vh) * var(--fs));color:var(--dim);margin-left:auto;text-align:right;white-space:pre-line}
-.hourly{display:flex;gap:.9vw;margin-top:1.2vh;flex:1 1 auto;min-height:0}
+.now{display:flex;align-items:center;gap:1.2vw}
+#nowbox{flex:1 1 auto;min-width:0}
+.now .icon{font-size:calc(min(5.2vw,10vh) * var(--fs));line-height:1.2}
+.now .temp{font-size:calc(min(4.6vw,9.5vh) * var(--fs));font-weight:300;line-height:1}
+.now .label{font-size:calc(min(2vw,4vh) * var(--fs));color:var(--dim);margin-left:auto;text-align:right;white-space:pre-line}
+.hourly{display:flex;gap:.7vw;margin-top:1.2vh;flex:0 0 auto}
 .hr{flex:1;min-width:0;text-align:center;background:var(--row);border-radius:1.2vh;padding:.9vh .1vw;
   display:flex;flex-direction:column;justify-content:center;
-  font-size:calc(min(3.1vw,5.6vh) * var(--fs));line-height:1.25}
+  font-size:calc(var(--hf, min(2.4vw,5vh)) * var(--fs));line-height:1.25}
 .hr .h{color:var(--dim);font-size:.82em}
 .hr .i{font-size:1.5em;line-height:1.15}
 .hr .t{white-space:nowrap}
 .hr .p{color:var(--accent);font-size:.82em}
 body.no-hourly .hourly{display:none}
-.days{display:flex;flex-direction:column;gap:.5vh;margin-top:1.2vh;flex:0 0 auto}
+.days{display:flex;flex-direction:column;gap:.8vh;margin-top:1.2vh;flex:1 1 auto;min-height:0}
 .day{display:flex;align-items:center;gap:1.4vw;background:var(--row);border-radius:1.4vh;
-  flex:0 0 auto;padding:.2vh 1.4vw;font-size:calc(min(2.6vw,4.5vh) * var(--fs));line-height:1.2}
-.day .d{flex:0 0 4.2em;color:var(--dim)}
+  flex:1 1 0;min-height:0;padding:.2vh 1.4vw;font-size:calc(min(3.2vw,6vh) * var(--fs));line-height:1.2}
+.day .d{flex:0 0 5.4em;color:var(--dim);white-space:nowrap}
 .day .i{flex:0 0 auto;font-size:1.45em;line-height:1.1}
 .day .t{flex:1;white-space:nowrap;text-align:right}
 .day .t .lo{color:var(--dim)}
@@ -126,7 +128,7 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
     </div>
   </section>
   <section class="right">
-    <div class="rdate" id="date"></div>
+    <div class="topline"><div class="rdate" id="date"></div><div class="now" id="nowbox"></div></div>
     <div class="card" id="weather"><div class="msg">天気を取得中…</div></div>
   </section>
 </div>
@@ -210,7 +212,7 @@ const CONFIG = {
   PANEL_AUTOCLOSE_SEC: 30
 };
 const DEFAULTS = {
-  fs: 1, cs: 1, mg: 1.2, hc: 4, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
+  ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
   theme: "dark", sec: "#ff8a5c",
   nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true
 };
@@ -245,10 +247,12 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 
 /* ---------- 設定の保存・適用 ---------- */
 let S = Object.assign({}, DEFAULTS);
+let storedVer = 0;
 try {
   const raw = localStorage.getItem(STORE_KEY);
-  if (raw) S = Object.assign(S, JSON.parse(raw));
+  if (raw) { const o = JSON.parse(raw); storedVer = o.ver || 0; S = Object.assign(S, o); }
 } catch (_) {}
+if (storedVer < 2) { S.hc = DEFAULTS.hc; S.ver = DEFAULTS.ver; }   // 旧設定の移行（表示数を6に）
 function sanitize() {
   if (!FONTS[S.font]) S.font = DEFAULTS.font;
   if (!HANDS[S.hands]) S.hands = DEFAULTS.hands;
@@ -282,6 +286,7 @@ function applySettings() {
   $("hhl").setAttribute("stroke-width", hd.hw);
   $("mhl").setAttribute("stroke-width", hd.mw);
   drawFace();
+  fitHourly();
   if (lastW && $("weather").querySelector(".hr") && $("weather").querySelectorAll(".hr").length !== Math.min(S.hc, 6)) renderWeather(lastW);
   // パネル表示の同期
   Object.keys(SLIDERS).forEach(k => {
@@ -403,8 +408,9 @@ function renderWeather(j) {
   const box = $("weather");
   const [icon, label] = WMO(j.current.weather_code);
   box.textContent = "";
-  const now = el("div", "now");
-  now.append(el("div", "icon", icon), el("div", "temp", Math.round(j.current.temperature_2m) + "°"),
+  const nb = $("nowbox");
+  nb.textContent = "";
+  nb.append(el("div", "icon", icon), el("div", "temp", Math.round(j.current.temperature_2m) + "°"),
     el("div", "label", CONFIG.PLACE + "\n" + label));
   const hourly = el("div", "hourly");
   const hrs = j.hourly, key = String(j.current.time).slice(0, 13) + ":00";
@@ -420,7 +426,10 @@ function renderWeather(j) {
     hourly.append(c);
   }
   const days = el("div", "days");
-  ["今日", "明日", "明後日"].forEach((name, i) => {
+  [1, 2, 3].forEach(i => {   // 明日から3日分。ラベルは「10/22(木)」形式
+    const dp = String(j.daily.time[i]).split("-");
+    const dd = new Date(+dp[0], +dp[1] - 1, +dp[2]);
+    const name = (+dp[1]) + "/" + (+dp[2]) + "(" + WD[dd.getDay()] + ")";
     const [ic] = WMO(j.daily.weather_code[i]);
     const row = el("div", "day");
     const t = el("div", "t");
@@ -430,15 +439,29 @@ function renderWeather(j) {
     row.append(el("div", "d", name), el("div", "i", ic), t, el("div", "p", (p == null ? "-" : p) + "%"));
     days.append(row);
   });
-  box.append(now, hourly, days);
+  box.append(hourly, days);
+  fitHourly();
 }
+
+// 時間ごとの天気：セルの幅に収まる最大の文字サイズ（縦は内容に合わせてコンパクト）
+function fitHourly() {
+  const h = document.querySelector("#weather .hourly");
+  if (!h || !h.children.length || !h.clientWidth) return;
+  const hs = getComputedStyle(h);
+  const gap = parseFloat(hs.columnGap) || 0;
+  const n = h.children.length;
+  const cellW = (h.clientWidth - gap * (n - 1)) / n;
+  const px = Math.max(10, Math.min(cellW / 2.5, innerHeight * 0.055)) / (S.fs || 1);
+  h.style.setProperty("--hf", px.toFixed(1) + "px");
+}
+window.addEventListener("resize", fitHourly);
 
 async function loadWeather() {
   const url = "https://api.open-meteo.com/v1/forecast?latitude=" + CONFIG.LAT + "&longitude=" + CONFIG.LON +
     "&current=temperature_2m,weather_code" +
     "&hourly=temperature_2m,weather_code,precipitation_probability" +
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
-    "&timezone=Asia%2FTokyo&forecast_days=3";
+    "&timezone=Asia%2FTokyo&forecast_days=4";
   const box = $("weather");
   try {
     const res = await fetch(url, { cache: "no-store" });
@@ -446,7 +469,7 @@ async function loadWeather() {
     lastW = await res.json();
     renderWeather(lastW);
   } catch (e) {
-    if (!box.querySelector(".now")) { box.textContent = ""; box.append(el("div", "msg", "天気を取得できません")); }
+    if (!box.querySelector(".days")) { box.textContent = ""; box.append(el("div", "msg", "天気を取得できません")); }
     console.error("weather", e);
   }
 }
