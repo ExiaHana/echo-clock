@@ -180,6 +180,7 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
   </div>
 
   <div class="acts">
+    <button class="act" id="fs">全画面</button>
     <button class="act" id="reset">初期設定に戻す</button>
     <button class="act close" id="close">閉じる</button>
   </div>
@@ -438,10 +439,26 @@ document.addEventListener("click", e => {
   if (panel.contains(e.target)) return;
   panel.classList.contains("open") ? closePanel() : openPanel();
 });
+// 全画面の切り替え（ブラウザが対応していない場合はボタンに表示）
+function toggleFullscreen(btn) {
+  const d = document, root = d.documentElement;
+  const cur = d.fullscreenElement || d.webkitFullscreenElement;
+  const req = root.requestFullscreen || root.webkitRequestFullscreen;
+  const exit = d.exitFullscreen || d.webkitExitFullscreen;
+  const note = msg => { const old = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = old; }, 2500); };
+  try {
+    if (cur) { exit.call(d); return; }
+    if (!req) { note("この端末では使えません"); return; }
+    const p = req.call(root);
+    if (p && p.catch) p.catch(() => note("この端末では使えません"));
+    closePanel();
+  } catch (_) { note("この端末では使えません"); }
+}
 panel.addEventListener("click", e => {
   armAutoClose();
   const t = e.target.closest("button");
   if (!t) return;
+  if (t.id === "fs") { toggleFullscreen(t); return; }
   if (t.dataset.tab) {
     document.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("on", x === t));
     document.querySelectorAll("[data-page]").forEach(x => x.classList.toggle("on", x.dataset.page === t.dataset.tab));
