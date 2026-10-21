@@ -51,6 +51,21 @@ body.no-date #date, body.no-date #date2, body.no-digital #dig2{display:none}
   stroke:var(--bg);paint-order:stroke;stroke-linejoin:round}   /* 背景色のふちで、針の上でも読めるようにする */
 .dial-dig{fill:var(--dim);font-family:var(--font);font-variant-numeric:tabular-nums;
   stroke:var(--bg);paint-order:stroke;stroke-linejoin:round}   /* 文字盤の中のデジタル時刻（数字と同じく針の上） */
+body.dg-bold .dial-dig{fill:var(--fg);font-weight:700}
+.dial-box{display:none;fill:var(--card);stroke:var(--line);stroke-width:.8}
+body.dg-box .dial-box{display:inline}
+body.dg-box .dial-dig{fill:var(--fg);stroke:none}
+body.no-digital .dial-box{display:none}
+body.dg-mono .dial-dig{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Courier New",monospace}
+#seg7{display:none}
+body.dg-seg #seg7{display:inline}
+body.dg-seg #dig2, body.no-digital #seg7{display:none}
+.seg-on{fill:var(--dim)}
+.seg-off{fill:var(--fg);opacity:.07}
+.seg-halo{fill:var(--bg);stroke:var(--bg);stroke-linejoin:round}
+.seg-pre{fill:var(--dim);font-family:var(--font);stroke:var(--bg);paint-order:stroke;stroke-linejoin:round}
+body.dg-bold .seg-on, body.dg-box .seg-on, body.dg-bold .seg-pre, body.dg-box .seg-pre{fill:var(--fg)}
+body.dg-box .seg-halo{display:none}
 .hand-tip{display:none;fill:var(--bg);stroke:var(--fg);stroke-width:2.2}
 body.hs-tip .hand-tip{display:inline}
 .hand{stroke:var(--fg)}
@@ -143,7 +158,9 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
         <circle class="hand-tip" cx="100" cy="26" r="5.5"/></g>
       <g id="sh"><line class="sechand" x1="100" y1="112" x2="100" y2="22" stroke-width="1.5" stroke-linecap="round"/></g>
       <g id="nums"></g><!-- 数字は針より上に描く（重なっても読めるように） -->
+      <rect id="dig2box" class="dial-box" rx="3"/>
       <text id="dig2" class="dial-dig" x="100" y="135" text-anchor="middle" dominant-baseline="central"></text>
+      <g id="seg7"></g><!-- 液晶風のときの時刻（線を組み合わせて描く。フォントを読み込まずに済むように） -->
       <circle class="pivot" cx="100" cy="100" r="4"/>
     </svg>
     <div class="sub">
@@ -181,6 +198,18 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
     <div class="row"><div class="lb">針のデザイン</div>
       <div class="seg" data-choice="hands">
         <button data-val="thin">細</button><button data-val="std">標準</button><button data-val="bold">太</button><button data-val="tip">先端丸</button>
+      </div></div>
+    <div class="row"><div class="lb">デジタル時刻の見た目</div>
+      <div class="seg" data-choice="digStyle">
+        <button data-val="std">標準</button><button data-val="bold">くっきり</button><button data-val="box">枠付き</button>
+      </div></div>
+    <div class="row"><div class="lb">デジタル時刻の表し方</div>
+      <div class="seg" data-choice="digFmt">
+        <button data-val="24">17:10</button><button data-val="12">午後5:10</button><button data-val="sec">17:10:25</button>
+      </div></div>
+    <div class="row"><div class="lb">デジタル時刻の文字</div>
+      <div class="seg" data-choice="digFont">
+        <button data-val="std">標準</button><button data-val="seg7">液晶風（7セグ）</button><button data-val="mono">等幅</button>
       </div></div>
     <div class="row"><div class="lb">フォント</div>
       <div class="seg" data-choice="font">
@@ -256,6 +285,7 @@ const CONFIG = {
 const DEFAULTS = {
   ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, font: "gothic", hands: "std",
   theme: "dark", sec: "#ff8a5c", lower: "days",   // lower=天気の下の欄（days=日ごとの天気 / cal=カレンダー）
+  digStyle: "std", digFmt: "24", digFont: "std",   // 文字盤の中のデジタル時刻（見た目 / 表し方 / 文字）
   nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true,
   fsWanted: false   // 全画面を使う意思（設定ボタンで入れた/解除した状態。初期化では変えない）
 };
@@ -301,6 +331,9 @@ function sanitize() {
   if (!FONTS[S.font]) S.font = DEFAULTS.font;
   if (!HANDS[S.hands]) S.hands = DEFAULTS.hands;
   if (["days", "cal"].indexOf(S.lower) < 0) S.lower = DEFAULTS.lower;
+  if (["std", "bold", "box"].indexOf(S.digStyle) < 0) S.digStyle = DEFAULTS.digStyle;
+  if (["24", "12", "sec"].indexOf(S.digFmt) < 0) S.digFmt = DEFAULTS.digFmt;
+  if (["std", "seg7", "mono"].indexOf(S.digFont) < 0) S.digFont = DEFAULTS.digFont;
   Object.keys(SLIDERS).forEach(k => { if (typeof S[k] !== "number" || isNaN(S[k])) S[k] = DEFAULTS[k]; });
 }
 sanitize();
@@ -326,6 +359,11 @@ function applySettings() {
   b.toggle("no-hourly", !S.hourly);
   const hd = HANDS[S.hands];
   b.toggle("hs-tip", hd.tip);
+  b.toggle("dg-bold", S.digStyle === "bold");
+  b.toggle("dg-box", S.digStyle === "box");
+  b.toggle("dg-seg", S.digFont === "seg7");
+  b.toggle("dg-mono", S.digFont === "mono");
+  lastDig = "";
   $("hhl").setAttribute("stroke-width", hd.hw);
   $("mhl").setAttribute("stroke-width", hd.mw);
   drawFace();
@@ -389,6 +427,82 @@ function drawFace() {
 
 /* ---------- 時計 ---------- */
 let lastMin = -1;
+let lastDig = "";   // 文字盤の中のデジタル時刻（変わったときだけ書き換える。設定を変えたら空にして描き直す）
+function updateDig(d) {
+  const h = d.getHours(), mm = pad(d.getMinutes());
+  const s = S.digFmt === "12" ? (h < 12 ? "午前" : "午後") + (h % 12 || 12) + ":" + mm
+          : S.digFmt === "sec" ? pad(h) + ":" + mm + ":" + pad(d.getSeconds())
+          : pad(h) + ":" + mm;
+  if (s === lastDig) return;
+  lastDig = s;
+  const t = $("dig2"), g = $("seg7");
+  if (S.digFont === "seg7") { t.textContent = ""; drawSeg7(s); }
+  else { g.textContent = ""; t.textContent = s; }
+  if (S.digStyle !== "box" || !S.digital) return;
+  const b = (S.digFont === "seg7" ? g : t).getBBox(), px = 4, py = 1.5, r = $("dig2box");   // 枠は文字の大きさに合わせる
+  r.setAttribute("x", (b.x - px).toFixed(2)); r.setAttribute("y", (b.y - py).toFixed(2));
+  r.setAttribute("width", (b.width + px * 2).toFixed(2)); r.setAttribute("height", (b.height + py * 2).toFixed(2));
+}
+
+// 液晶風（7セグメント）の時刻を、六角形の線を組み合わせて描く。消えている線もうっすら出して液晶らしくする。
+// 「午前／午後」はふつうの文字で左に添える。大きさと位置は文字盤の中の時刻（dig2）に合わせる。
+const SEG7 = { "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd",
+               "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg" };
+function drawSeg7(s) {
+  const NS = "http://www.w3.org/2000/svg", g = $("seg7"), ref = $("dig2");
+  g.textContent = "";
+  const fsz = parseFloat(ref.getAttribute("font-size")), cy = parseFloat(ref.getAttribute("y"));
+  const H = fsz * 0.95, W = H * 0.55, th = H * 0.14, gp = th * 0.12, adv = W + th * 1.1, colW = th * 2.4;
+  const m = /^(午前|午後)(.*)$/.exec(s), pre = m ? m[1] : "", body = m ? m[2] : s;
+  const preFs = fsz * 0.5, preW = pre ? preFs * 2 + th * 1.2 : 0;
+  let total = 0;
+  for (const ch of body) total += ch === ":" ? colW : adv;
+  total -= th * 1.1;                                          // 最後の字の後ろの隙間は数えない
+  let x = 100 - (preW + total) / 2;
+  const y0 = cy - H / 2;
+  const mk = (tag, cls) => { const e = document.createElementNS(NS, tag); e.setAttribute("class", cls); return e; };
+  const halo = mk("g", ""), fills = mk("g", "");
+  g.setAttribute("transform", `translate(100 ${cy}) skewX(-7) translate(-100 ${-cy})`);   // 少し傾けて液晶らしく
+  if (pre) {
+    const tp = mk("text", "seg-pre");
+    tp.setAttribute("x", x.toFixed(2)); tp.setAttribute("y", cy.toFixed(2));
+    tp.setAttribute("font-size", preFs.toFixed(1)); tp.setAttribute("stroke-width", (preFs * 0.22).toFixed(1));
+    tp.setAttribute("dominant-baseline", "central");
+    tp.textContent = pre;
+    g.appendChild(tp);
+    x += preW;
+  }
+  const hex = (cx, cy2, L, vert) => {                          // 端をとがらせた線（横か縦）
+    const a = L / 2, b = th / 2;
+    const p = vert ? [[0, -a], [b, -a + b], [b, a - b], [0, a], [-b, a - b], [-b, -a + b]]
+                   : [[-a, 0], [-a + b, -b], [a - b, -b], [a, 0], [a - b, b], [-a + b, b]];
+    return p.map(q => (cx + q[0]).toFixed(2) + "," + (cy2 + q[1]).toFixed(2)).join(" ");
+  };
+  const put = (pts, on) => {
+    if (on) { const h = mk("polygon", "seg-halo"); h.setAttribute("points", pts); h.setAttribute("stroke-width", (th * 0.7).toFixed(2)); halo.appendChild(h); }
+    const f = mk("polygon", on ? "seg-on" : "seg-off"); f.setAttribute("points", pts); fills.appendChild(f);
+  };
+  for (const ch of body) {
+    if (ch === ":") {
+      [0.32, 0.68].forEach(k => {
+        const cx = x + colW / 2 - th * 0.55, cyd = y0 + H * k;
+        const pts = [[0, 0], [th, 0], [th, th], [0, th]].map(q => (cx + q[0]).toFixed(2) + "," + (cyd - th / 2 + q[1]).toFixed(2)).join(" ");
+        put(pts, true);
+      });
+      x += colW;
+      continue;
+    }
+    const on = SEG7[ch] || "", Lh = W - th - gp * 2, Lv = H / 2 - th / 2 - gp * 2;
+    const segs = {
+      a: hex(x + W / 2, y0 + th / 2, Lh), g: hex(x + W / 2, y0 + H / 2, Lh), d: hex(x + W / 2, y0 + H - th / 2, Lh),
+      f: hex(x + th / 2, y0 + H / 4 + th / 4, Lv, true), b: hex(x + W - th / 2, y0 + H / 4 + th / 4, Lv, true),
+      e: hex(x + th / 2, y0 + H * 3 / 4 - th / 4, Lv, true), c: hex(x + W - th / 2, y0 + H * 3 / 4 - th / 4, Lv, true)
+    };
+    Object.keys(segs).forEach(k => put(segs[k], on.indexOf(k) >= 0));
+    x += adv;
+  }
+  g.appendChild(halo); g.appendChild(fills);
+}
 function applyNight() {
   const hr = new Date().getHours();
   document.body.classList.toggle("night", S.night && (hr >= CONFIG.NIGHT_FROM || hr < CONFIG.NIGHT_TO));
@@ -400,12 +514,12 @@ function tick() {
   $("hh").setAttribute("transform", `rotate(${h * 30} 100 100)`);
   $("mh").setAttribute("transform", `rotate(${m * 6} 100 100)`);
   $("sh").setAttribute("transform", `rotate(${s * 6} 100 100)`);
+  updateDig(d);
 
   if (d.getMinutes() !== lastMin) {
     lastMin = d.getMinutes();
     const ds = `${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`;
     $("date").textContent = ds; $("date2").textContent = ds;
-    $("dig2").textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     // 焼き付き防止：毎分わずかに位置をずらす
     const dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 12 - 6);
     $("wrap").style.transform = `translate(${dx}px, ${dy}px)`;
