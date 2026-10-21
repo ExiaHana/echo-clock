@@ -8,7 +8,7 @@
 :root{
   --bg:#0b0d12; --fg:#e8ecf3; --dim:#8892a6; --accent:#6ea8ff; --card:#141824; --row:rgba(255,255,255,.05);
   --line:rgba(255,255,255,.14); --sec:#ff8a5c;
-  --fs:1; --cs:1; --nw:300; --m:1.2; --plate:var(--bg);
+  --fs:1; --cs:1; --nw:300; --m:1.2;
   --subh:calc(8.5vh * var(--fs));
   --font:"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
 }
@@ -48,8 +48,7 @@ body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
 /* 文字盤の配色 */
 .tk-major{stroke:var(--fg)} .tk-minor{stroke:var(--dim)}
 .num{fill:var(--fg);font-family:var(--font);font-weight:var(--nw)}
-.plate{fill:var(--card)}
-.hand-tip{display:none;fill:var(--plate);stroke:var(--fg);stroke-width:2.2}
+.hand-tip{display:none;fill:var(--bg);stroke:var(--fg);stroke-width:2.2}
 body.hs-tip .hand-tip{display:inline}
 .hand{stroke:var(--fg)}
 .sechand{stroke:var(--sec)} .pivot{fill:var(--sec)}
@@ -83,6 +82,12 @@ body.no-hourly .hourly{display:none}
 .day .t{flex:1;white-space:nowrap;text-align:right}
 .day .t .lo{color:var(--dim)}
 .day .p{flex:0 0 2.8em;text-align:right;color:var(--accent);white-space:nowrap}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr;gap:.5vh .4vw;margin-top:1.2vh;
+  flex:1 1 auto;min-height:0;text-align:center;line-height:1;font-size:calc(min(var(--rw) * .05, 4.6vh) * var(--fs))}
+.cal > div{display:flex;align-items:center;justify-content:center;border-radius:1vh;min-height:0}
+.cal .wd{color:var(--dim);font-size:.8em}
+.cal .sun{color:#ff7a7a} .cal .sat{color:var(--accent)}
+.cal .today{background:var(--accent);color:#fff;font-weight:700}
 .msg{color:var(--dim);font-size:calc(min(2.2vw,4vh) * var(--fs))}
 
 /* 設定パネル（画面をタップで開閉） */
@@ -169,10 +174,6 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
   </div>
 
   <div class="tabpage" data-page="design">
-    <div class="row"><div class="lb">文字盤の形</div>
-      <div class="seg" data-choice="shape">
-        <button data-val="round">丸</button><button data-val="square">四角</button><button data-val="rounded">角丸四角</button>
-      </div></div>
     <div class="row"><div class="lb">針のデザイン</div>
       <div class="seg" data-choice="hands">
         <button data-val="thin">細</button><button data-val="std">標準</button><button data-val="bold">太</button><button data-val="tip">先端丸</button>
@@ -207,6 +208,10 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
         <button class="tg" data-toggle="weather">天気</button>
         <button class="tg" data-toggle="hourly">1時間ごと天気</button>
         <button class="tg" data-toggle="night">夜間の減光</button>
+      </div></div>
+    <div class="row"><div class="lb">天気の下の欄</div>
+      <div class="seg" data-choice="lower">
+        <button data-val="days">日ごとの天気</button><button data-val="cal">カレンダー</button>
       </div></div>
     <div class="row"><div class="lb">状態</div>
       <div class="stat"><span>全画面</span><b id="st-fs"></b></div>
@@ -243,8 +248,8 @@ const CONFIG = {
   PANEL_AUTOCLOSE_SEC: 30
 };
 const DEFAULTS = {
-  ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
-  theme: "dark", sec: "#ff8a5c",
+  ver: 2, fs: 1, cs: 1, mg: 1.2, hc: 6, ns: 17, nw: 300, font: "gothic", hands: "std",
+  theme: "dark", sec: "#ff8a5c", lower: "days",   // lower=天気の下の欄（days=日ごとの天気 / cal=カレンダー）
   nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true,
   fsWanted: false   // 全画面を使う意思（設定ボタンで入れた/解除した状態。初期化では変えない）
 };
@@ -289,7 +294,7 @@ function sanitize() {
   S.fsWanted = !!S.fsWanted;
   if (!FONTS[S.font]) S.font = DEFAULTS.font;
   if (!HANDS[S.hands]) S.hands = DEFAULTS.hands;
-  if (["round", "square", "rounded"].indexOf(S.shape) < 0) S.shape = DEFAULTS.shape;
+  if (["days", "cal"].indexOf(S.lower) < 0) S.lower = DEFAULTS.lower;
   Object.keys(SLIDERS).forEach(k => { if (typeof S[k] !== "number" || isNaN(S[k])) S[k] = DEFAULTS[k]; });
 }
 sanitize();
@@ -304,7 +309,6 @@ function applySettings() {
   root.style.setProperty("--sec", S.sec);
   root.style.setProperty("--nw", S.nw);
   root.style.setProperty("--font", FONTS[S.font]);
-  root.style.setProperty("--plate", S.shape === "round" ? "var(--bg)" : "var(--card)");
   root.setAttribute("data-theme", S.theme);
   const b = document.body.classList;
   b.toggle("no-nums", !S.nums);
@@ -321,6 +325,7 @@ function applySettings() {
   drawFace();
   fitHourly();
   if (lastW && $("weather").querySelector(".hr") && $("weather").querySelectorAll(".hr").length !== Math.min(S.hc, 6)) renderWeather(lastW);
+  else renderLower();
   // パネル表示の同期
   Object.keys(SLIDERS).forEach(k => {
     const inp = document.querySelector('input[data-key="' + k + '"]');
@@ -334,42 +339,19 @@ function applySettings() {
   applyNight();
 }
 
-/* ---------- 文字盤（目盛り・数字・形） ---------- */
+/* ---------- 文字盤（目盛り・数字） ---------- */
 // 角度 theta(0=真上, 時計回り)の方向で、文字盤の縁から inset だけ内側にある座標と、中心から外向きの単位ベクトル(dx,dy)を返す
-function boundary(theta, shape, inset) {
-  const dx = Math.sin(theta), dy = -Math.cos(theta);
-  if (shape === "round") {
-    const R = 92 - inset;
-    return { x: 100 + R * dx, y: 100 + R * dy, dx: dx, dy: dy };
-  }
-  const H = 92 - inset, rc = Math.max(0, (shape === "rounded" ? 34 : 0) - inset);
-  const k = H / Math.max(Math.abs(dx), Math.abs(dy));
-  let px = dx * k, py = dy * k;
-  const c0 = H - rc;
-  if (rc > 0 && Math.abs(px) > c0 && Math.abs(py) > c0) {          // 角丸の部分
-    const cx = Math.sign(px) * c0, cy = Math.sign(py) * c0;
-    const bb = dx * cx + dy * cy;
-    const t = bb + Math.sqrt(bb * bb - (cx * cx + cy * cy) + rc * rc);
-    px = dx * t; py = dy * t;
-  }
-  return { x: 100 + px, y: 100 + py, dx: dx, dy: dy };
+function boundary(theta, inset) {
+  const dx = Math.sin(theta), dy = -Math.cos(theta), R = 92 - inset;
+  return { x: 100 + R * dx, y: 100 + R * dy, dx: dx, dy: dy };
 }
 function drawFace() {
   const NS = "http://www.w3.org/2000/svg", g = $("ticks");
   g.textContent = "";
-  const round = S.shape === "round", m = round ? 0 : 5;     // 四角系は縁から少し内側に目盛りを置く
-  if (!round) {
-    const H = 92, r = document.createElementNS(NS, "rect");
-    r.setAttribute("class", "plate");
-    r.setAttribute("x", 100 - H); r.setAttribute("y", 100 - H);
-    r.setAttribute("width", H * 2); r.setAttribute("height", H * 2);
-    r.setAttribute("rx", S.shape === "rounded" ? 34 : 0);
-    g.appendChild(r);
-  }
   for (let i = 0; i < 60; i++) {
     const major = i % 5 === 0, len = major ? 10 : 5;
-    const p = boundary(i * 6 * Math.PI / 180, S.shape, 0);
-    const ox = p.x - p.dx * m, oy = p.y - p.dy * m;          // 目盛りは中心に向かって放射状
+    const p = boundary(i * 6 * Math.PI / 180, 0);
+    const ox = p.x, oy = p.y;                                  // 目盛りは中心に向かって放射状
     const ln = document.createElementNS(NS, "line");
     ln.setAttribute("class", major ? "tk-major" : "tk-minor");
     ln.setAttribute("x1", ox.toFixed(2)); ln.setAttribute("y1", oy.toFixed(2));
@@ -378,9 +360,9 @@ function drawFace() {
     ln.setAttribute("stroke-linecap", "round");
     g.appendChild(ln);
   }
-  const inset = m + 10 + 6 + S.ns * 0.6;                     // 数字は縮めた同じ形の上に並べる
+  const inset = 10 + 6 + S.ns * 0.6;                         // 数字は目盛りの内側の円の上に並べる
   for (let n = 1; n <= 12; n++) {
-    const p = boundary(n * 30 * Math.PI / 180, S.shape, inset);
+    const p = boundary(n * 30 * Math.PI / 180, inset);
     const t = document.createElementNS(NS, "text");
     t.setAttribute("class", "num");
     t.setAttribute("x", p.x.toFixed(2));
@@ -416,6 +398,7 @@ function tick() {
     const dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 12 - 6);
     $("wrap").style.transform = `translate(${dx}px, ${dy}px)`;
     applyNight();
+    if (S.lower === "cal" && d.getDate() !== calDay) renderLower();
   }
   requestAnimationFrame(tick);
 }
@@ -458,8 +441,105 @@ function renderWeather(j) {
       el("div", "t", Math.round(hrs.temperature_2m[k]) + "°"), el("div", "p", (hp == null ? "-" : hp) + "%"));
     hourly.append(c);
   }
+  box.append(hourly);
+  renderLower();
+  fitHourly();
+}
+
+// 天気の下の欄：設定に応じて日ごとの天気かカレンダーを置く（カレンダーは天気が取れなくても出す）
+function renderLower() {
+  const box = $("weather");
+  const old = box.querySelector(".days, .cal");
+  let nw;
+  if (S.lower === "cal") nw = renderCal();
+  else if (lastW) nw = buildDays(lastW);
+  else { if (old) old.remove(); return; }
+  old ? old.replaceWith(nw) : box.append(nw);
+}
+
+// 日本の祝日。キーは "月-日"。ネットで取れた年はその一覧を使い、無い年は calcHolidays で計算する。
+// 取得先は内閣府の一覧を元にした有志の公開データ（去年〜来年の分）。取れた一覧は 1 日だけ端末に覚えておく。
+const HOL_URL = "https://holidays-jp.github.io/api/v1/date.json";
+const HOL_KEY = "echoDash.holidays";   // 設定（echoDash.v1）とは別に保存する
+let netHol = {};                       // 年 → { "月-日": 名前 }
+function setNetHol(days) {
+  const by = {};
+  Object.keys(days).forEach(s => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (!m || typeof days[s] !== "string") return;
+    (by[+m[1]] = by[+m[1]] || {})[(+m[2]) + "-" + (+m[3])] = days[s];
+  });
+  netHol = by;
+  return Object.keys(by).length > 0;
+}
+try { const o = JSON.parse(localStorage.getItem(HOL_KEY) || "null"); if (o && o.days) setNetHol(o.days); } catch (_) {}
+async function loadHolidays() {
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(HOL_KEY) || "null"); } catch (_) {}
+  if (o && o.fetched && nowMs() - o.fetched < 24 * 3600 * 1000) return;
+  try {
+    const res = await fetch(HOL_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const days = await res.json();
+    if (!days || typeof days !== "object" || !setNetHol(days)) throw new Error("中身が空");
+    try { localStorage.setItem(HOL_KEY, JSON.stringify({ fetched: nowMs(), days: days })); } catch (_) {}
+    if (S.lower === "cal") renderLower();
+  } catch (e) {
+    console.error("holidays", e);   // 取れなければ、覚えている一覧か計算のまま
+  }
+}
+function jpHolidays(y) { return netHol[y] || calcHolidays(y); }
+
+// 祝日を、いまの祝日法の決まりで計算する（ネットで取れなかった年の代わり）。
+// 春分・秋分は 1980〜2099 年に使える近似式。一度きりの祝日は含まれない。
+const holCache = {};
+function calcHolidays(y) {
+  if (holCache[y]) return holCache[y];
+  const H = {}, key = dt => (dt.getMonth() + 1) + "-" + dt.getDate();
+  const set = (m, d, name) => { H[m + "-" + d] = name; };
+  const nthMon = (m, n) => 1 + (8 - new Date(y, m - 1, 1).getDay()) % 7 + (n - 1) * 7;   // m月の第n月曜
+  const k = y - 1980, q = Math.floor(k / 4);
+  set(1, 1, "元日"); set(1, nthMon(1, 2), "成人の日"); set(2, 11, "建国記念の日"); set(2, 23, "天皇誕生日");
+  set(3, Math.floor(20.8431 + 0.242194 * k) - q, "春分の日");
+  set(4, 29, "昭和の日"); set(5, 3, "憲法記念日"); set(5, 4, "みどりの日"); set(5, 5, "こどもの日");
+  set(7, nthMon(7, 3), "海の日"); set(8, 11, "山の日"); set(9, nthMon(9, 3), "敬老の日");
+  set(9, Math.floor(23.2488 + 0.242194 * k) - q, "秋分の日");
+  set(10, nthMon(10, 2), "スポーツの日"); set(11, 3, "文化の日"); set(11, 23, "勤労感謝の日");
+  const base = Object.assign({}, H);
+  for (let dt = new Date(y, 0, 2); dt.getFullYear() === y; dt.setDate(dt.getDate() + 1)) {   // 国民の休日（祝日に挟まれた平日）
+    const prev = new Date(y, dt.getMonth(), dt.getDate() - 1), next = new Date(y, dt.getMonth(), dt.getDate() + 1);
+    if (!base[key(dt)] && base[key(prev)] && base[key(next)] && next.getFullYear() === y) H[key(dt)] = "国民の休日";
+  }
+  Object.keys(base).forEach(s => {                                   // 振替休日（日曜の祝日の後の、最初の祝日でない日）
+    const p = s.split("-"), dt = new Date(y, +p[0] - 1, +p[1]);
+    if (dt.getDay() !== 0) return;
+    do dt.setDate(dt.getDate() + 1); while (H[key(dt)]);
+    if (dt.getFullYear() === y) H[key(dt)] = "振替休日";
+  });
+  return (holCache[y] = H);
+}
+
+let calDay = -1;   // カレンダーを描いた日（日付が変わったら描き直す）
+function renderCal() {
+  const d = new Date(), y = d.getFullYear(), mo = d.getMonth(), today = d.getDate();
+  const off = new Date(y, mo, 1).getDay(), dim = new Date(y, mo + 1, 0).getDate();
+  const hol = jpHolidays(y);
+  const cal = el("div", "cal");
+  WD.forEach((w, i) => cal.append(el("div", "wd" + (i === 0 ? " sun" : i === 6 ? " sat" : ""), w)));
+  for (let i = 0; i < off; i++) cal.append(el("div"));
+  for (let n = 1; n <= dim; n++) {
+    const wd = (off + n - 1) % 7, h = hol[(mo + 1) + "-" + n];
+    const c = el("div", n === today ? "today" : (wd === 0 || h) ? "sun" : wd === 6 ? "sat" : "", n);
+    if (h) c.title = h;
+    cal.append(c);
+  }
+  calDay = today;
+  return cal;
+}
+
+function buildDays(j) {
   const days = el("div", "days");
-  [1, 2, 3].forEach(i => {   // 明日から3日分。ラベルは「10/22(木)」形式
+  [1, 2, 3, 4].forEach(i => {   // 明日から4日分。ラベルは「10/22(木)」形式
     const dp = String(j.daily.time[i]).split("-");
     const dd = new Date(+dp[0], +dp[1] - 1, +dp[2]);
     const name = (+dp[1]) + "/" + (+dp[2]) + "(" + WD[dd.getDay()] + ")";
@@ -472,8 +552,7 @@ function renderWeather(j) {
     row.append(el("div", "d", name), el("div", "i", ic), t, el("div", "p", (p == null ? "-" : p) + "%"));
     days.append(row);
   });
-  box.append(hourly, days);
-  fitHourly();
+  return days;
 }
 
 // 時間ごとの天気：セルの幅に収まる最大の文字サイズ（縦は内容に合わせてコンパクト）
@@ -494,7 +573,7 @@ async function loadWeather() {
     "&current=temperature_2m,weather_code" +
     "&hourly=temperature_2m,weather_code,precipitation_probability" +
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
-    "&timezone=Asia%2FTokyo&forecast_days=4";
+    "&timezone=Asia%2FTokyo&forecast_days=5";
   const box = $("weather");
   try {
     const res = await fetch(url, { cache: "no-store" });
@@ -502,7 +581,7 @@ async function loadWeather() {
     lastW = await res.json();
     renderWeather(lastW);
   } catch (e) {
-    if (!box.querySelector(".days")) { box.textContent = ""; box.append(el("div", "msg", "天気を取得できません")); }
+    if (!lastW) { box.textContent = ""; box.append(el("div", "msg", "天気を取得できません")); renderLower(); }
     console.error("weather", e);
   }
 }
@@ -764,6 +843,8 @@ applySettings();
 requestAnimationFrame(tick);
 loadWeather();
 setInterval(loadWeather, CONFIG.WEATHER_REFRESH_MIN * 60000);
+loadHolidays();
+setInterval(loadHolidays, 3600 * 1000);   // 1時間ごとに見て、前に取ってから1日たっていれば取り直す
 // 6時間ごとの自動再読み込み：Silk 以外のみ。Silk では再読み込み後に全画面と無音再生の再タップが必要になるため行わない。
 // 重くなったら設定の「ページを再読み込み」を使う。
 if (!IS_SILK) setTimeout(() => location.reload(), 6 * 3600 * 1000);
