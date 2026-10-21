@@ -22,15 +22,15 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--fg);overflow:h
   font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
   -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 body.night #wrap{opacity:.55}
-#wrap{font-family:var(--font);width:100%;height:100%;display:grid;grid-template-columns:auto 1fr;gap:2vw;
+#wrap{font-family:var(--font);width:100%;height:100%;display:grid;grid-template-columns:auto 1fr;gap:2vw;align-items:start;
   padding:calc(var(--m) * 1vh) calc(var(--m) * 0.9vw);transition:transform 2s ease,opacity 2s ease}
 body.no-weather #wrap{grid-template-columns:1fr}
 body.no-weather .right{display:none}
 
 /* 左: アナログ時計 */
-.clock{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:0;min-height:0}
-#face{--side:calc(min(100vh - 2 * var(--m) * 1vh - var(--subh), 56vw) * var(--cs));
-  width:var(--side);height:var(--side);flex:0 0 auto}
+.clock{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;min-width:0;min-height:0}
+body{--side:calc(min(100vh - 2 * var(--m) * 1vh - var(--subh), 56vw) * var(--cs))}
+#face{width:var(--side);height:var(--side);flex:0 0 auto}
 body.no-digital{--subh:0vh}
 body.no-weather{--subh:calc(15.5vh * var(--fs))}
 body.no-weather.no-digital, body.no-weather.no-date{--subh:calc(8.5vh * var(--fs))}
@@ -38,7 +38,7 @@ body.no-weather.no-digital.no-date{--subh:0vh}
 .sub{margin-top:1.4vh;text-align:center;line-height:1.3}
 .sub .date{font-size:calc(min(2.6vw,4.8vh) * var(--fs))}
 .sub .dig{font-size:calc(min(2.6vw,4.8vh) * var(--fs));color:var(--dim);font-variant-numeric:tabular-nums}
-.rdate{font-size:calc(min(3.6vw,6.6vh) * var(--fs));line-height:1.2;padding:0 .4vw;flex:0 0 auto}
+.rdate{font-size:calc(min(3.4vw,6.2vh) * var(--fs));line-height:1.1;padding:0 .4vw;flex:0 0 auto}
 #date2{display:none}
 body.no-weather #date2{display:block}
 body.no-date #date, body.no-date #date2, body.no-digital #dig{display:none}
@@ -56,24 +56,25 @@ body.no-minor .tk-minor{display:none}
 body.no-second #sh{display:none}
 
 /* 右: 天気 */
-.right{display:flex;flex-direction:column;gap:1.4vh;min-width:0;min-height:0}
+.right{display:flex;flex-direction:column;gap:1vh;min-width:0;min-height:0;height:var(--side)}
 .card{background:var(--card);border-radius:2.4vh;padding:2vh 1.8vw}
-#weather{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+#weather{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .now{display:flex;align-items:center;gap:1.6vw}
-.now .icon{font-size:calc(min(11vw,17vh) * var(--fs));line-height:1}
-.now .temp{font-size:calc(min(9vw,15vh) * var(--fs));font-weight:300;line-height:1}
-.now .label{font-size:calc(min(3vw,5.2vh) * var(--fs));color:var(--dim);margin-left:auto;text-align:right;white-space:pre-line}
-.hourly{display:flex;gap:.7vw;margin-top:1.4vh;flex:0 0 auto}
+.now .icon{font-size:calc(min(8.6vw,13vh) * var(--fs));line-height:1}
+.now .temp{font-size:calc(min(7vw,11.5vh) * var(--fs));font-weight:300;line-height:1}
+.now .label{font-size:calc(min(2.6vw,4.6vh) * var(--fs));color:var(--dim);margin-left:auto;text-align:right;white-space:pre-line}
+.hourly{display:flex;gap:.9vw;margin-top:1.2vh;flex:1 1 auto;min-height:0}
 .hr{flex:1;min-width:0;text-align:center;background:var(--row);border-radius:1.2vh;padding:.9vh .1vw;
-  font-size:calc(min(2.4vw,4.2vh) * var(--fs));line-height:1.25}
+  display:flex;flex-direction:column;justify-content:center;
+  font-size:calc(min(3.1vw,5.6vh) * var(--fs));line-height:1.25}
 .hr .h{color:var(--dim);font-size:.82em}
 .hr .i{font-size:1.5em;line-height:1.15}
 .hr .t{white-space:nowrap}
 .hr .p{color:var(--accent);font-size:.82em}
 body.no-hourly .hourly{display:none}
-.days{display:flex;flex-direction:column;gap:1.1vh;margin-top:1.4vh;flex:1 1 auto;min-height:0}
+.days{display:flex;flex-direction:column;gap:.5vh;margin-top:1.2vh;flex:0 0 auto}
 .day{display:flex;align-items:center;gap:1.4vw;background:var(--row);border-radius:1.4vh;
-  flex:1 1 0;min-height:0;padding:.6vh 1.4vw;font-size:calc(min(2.8vw,4.8vh) * var(--fs))}
+  flex:0 0 auto;padding:.2vh 1.4vw;font-size:calc(min(2.6vw,4.5vh) * var(--fs));line-height:1.2}
 .day .d{flex:0 0 4.2em;color:var(--dim)}
 .day .i{flex:0 0 auto;font-size:1.45em;line-height:1.1}
 .day .t{flex:1;white-space:nowrap;text-align:right}
@@ -141,6 +142,8 @@ input[type=range]{width:100%;height:min(4.8vh,30px);accent-color:var(--accent)}
       <input type="range" data-key="fs" min="0.7" max="1.5" step="0.05"></div>
     <div class="row"><div class="lb"><span>時計の大きさ</span><span id="v-cs"></span></div>
       <input type="range" data-key="cs" min="0.5" max="1" step="0.05"></div>
+    <div class="row"><div class="lb"><span>1時間ごと天気の表示数</span><span id="v-hc"></span></div>
+      <input type="range" data-key="hc" min="3" max="6" step="1"></div>
     <div class="row"><div class="lb"><span>画面の余白</span><span id="v-mg"></span></div>
       <input type="range" data-key="mg" min="0" max="5" step="0.2"></div>
     <div class="row"><div class="lb"><span>数字のサイズ</span><span id="v-ns"></span></div>
@@ -207,7 +210,7 @@ const CONFIG = {
   PANEL_AUTOCLOSE_SEC: 30
 };
 const DEFAULTS = {
-  fs: 1, cs: 1, mg: 1.2, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
+  fs: 1, cs: 1, mg: 1.2, hc: 4, ns: 17, nw: 300, font: "gothic", shape: "round", hands: "std",
   theme: "dark", sec: "#ff8a5c",
   nums: true, minor: true, second: true, digital: true, date: true, weather: true, hourly: true, night: true
 };
@@ -228,6 +231,7 @@ const SLIDERS = {   // 設定キー: 表示フォーマット
   fs: v => Math.round(v * 100) + "%",
   cs: v => Math.round(v * 100) + "%",
   mg: v => v.toFixed(1),
+  hc: v => v + "時間",
   ns: v => String(v),
   nw: v => String(v)
 };
@@ -278,6 +282,7 @@ function applySettings() {
   $("hhl").setAttribute("stroke-width", hd.hw);
   $("mhl").setAttribute("stroke-width", hd.mw);
   drawFace();
+  if (lastW && $("weather").querySelector(".hr") && $("weather").querySelectorAll(".hr").length !== Math.min(S.hc, 6)) renderWeather(lastW);
   // パネル表示の同期
   Object.keys(SLIDERS).forEach(k => {
     const inp = document.querySelector('input[data-key="' + k + '"]');
@@ -393,6 +398,41 @@ const WMO = (c) => {
   return ["❓", "不明"];
 };
 
+let lastW = null;
+function renderWeather(j) {
+  const box = $("weather");
+  const [icon, label] = WMO(j.current.weather_code);
+  box.textContent = "";
+  const now = el("div", "now");
+  now.append(el("div", "icon", icon), el("div", "temp", Math.round(j.current.temperature_2m) + "°"),
+    el("div", "label", CONFIG.PLACE + "\n" + label));
+  const hourly = el("div", "hourly");
+  const hrs = j.hourly, key = String(j.current.time).slice(0, 13) + ":00";
+  let k0 = hrs.time.indexOf(key);
+  if (k0 < 0) k0 = 0;
+  for (let k = k0; k < Math.min(k0 + S.hc, hrs.time.length); k++) {
+    const c = el("div", "hr");
+    const hh = parseInt(hrs.time[k].slice(11, 13), 10);
+    const [hi] = WMO(hrs.weather_code[k]);
+    const hp = hrs.precipitation_probability[k];
+    c.append(el("div", "h", k === k0 ? "今" : hh + "時"), el("div", "i", hi),
+      el("div", "t", Math.round(hrs.temperature_2m[k]) + "°"), el("div", "p", (hp == null ? "-" : hp) + "%"));
+    hourly.append(c);
+  }
+  const days = el("div", "days");
+  ["今日", "明日", "明後日"].forEach((name, i) => {
+    const [ic] = WMO(j.daily.weather_code[i]);
+    const row = el("div", "day");
+    const t = el("div", "t");
+    t.append(document.createTextNode(Math.round(j.daily.temperature_2m_max[i]) + "° "),
+      el("span", "lo", Math.round(j.daily.temperature_2m_min[i]) + "°"));
+    const p = j.daily.precipitation_probability_max[i];
+    row.append(el("div", "d", name), el("div", "i", ic), t, el("div", "p", (p == null ? "-" : p) + "%"));
+    days.append(row);
+  });
+  box.append(now, hourly, days);
+}
+
 async function loadWeather() {
   const url = "https://api.open-meteo.com/v1/forecast?latitude=" + CONFIG.LAT + "&longitude=" + CONFIG.LON +
     "&current=temperature_2m,weather_code" +
@@ -403,37 +443,8 @@ async function loadWeather() {
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const j = await res.json();
-    const [icon, label] = WMO(j.current.weather_code);
-    box.textContent = "";
-    const now = el("div", "now");
-    now.append(el("div", "icon", icon), el("div", "temp", Math.round(j.current.temperature_2m) + "°"),
-      el("div", "label", CONFIG.PLACE + "\n" + label));
-    const hourly = el("div", "hourly");
-    const hrs = j.hourly, key = String(j.current.time).slice(0, 13) + ":00";
-    let k0 = hrs.time.indexOf(key);
-    if (k0 < 0) k0 = 0;
-    for (let k = k0; k < Math.min(k0 + 6, hrs.time.length); k++) {
-      const c = el("div", "hr");
-      const hh = parseInt(hrs.time[k].slice(11, 13), 10);
-      const [hi] = WMO(hrs.weather_code[k]);
-      const hp = hrs.precipitation_probability[k];
-      c.append(el("div", "h", k === k0 ? "今" : hh + "時"), el("div", "i", hi),
-        el("div", "t", Math.round(hrs.temperature_2m[k]) + "°"), el("div", "p", (hp == null ? "-" : hp) + "%"));
-      hourly.append(c);
-    }
-    const days = el("div", "days");
-    ["今日", "明日", "明後日"].forEach((name, i) => {
-      const [ic] = WMO(j.daily.weather_code[i]);
-      const row = el("div", "day");
-      const t = el("div", "t");
-      t.append(document.createTextNode(Math.round(j.daily.temperature_2m_max[i]) + "° "),
-        el("span", "lo", Math.round(j.daily.temperature_2m_min[i]) + "°"));
-      const p = j.daily.precipitation_probability_max[i];
-      row.append(el("div", "d", name), el("div", "i", ic), t, el("div", "p", (p == null ? "-" : p) + "%"));
-      days.append(row);
-    });
-    box.append(now, hourly, days);
+    lastW = await res.json();
+    renderWeather(lastW);
   } catch (e) {
     if (!box.querySelector(".now")) { box.textContent = ""; box.append(el("div", "msg", "天気を取得できません")); }
     console.error("weather", e);
