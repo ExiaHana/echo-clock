@@ -107,6 +107,10 @@ body.no-hourly .hourly{display:none}
 .cal .wd{color:var(--dim);font-size:.8em}
 .cal .sun{color:#ff7a7a} .cal .sat{color:var(--accent)}
 .cal .today{background:var(--accent);color:var(--onaccent);font-weight:700}
+.cal.wx{font-size:calc(min(var(--rw) * .042, 3.9vh) * var(--fs))}   /* 天気のマークを入れるぶん、数字を少し小さく */
+.cal.wx > div{flex-direction:column;gap:.15em}
+.cal .wi{font-size:1em;line-height:1}
+.cal .next{opacity:.45}   /* 来月の頭の日 */
 .msg{color:var(--dim);font-size:calc(min(2.2vw,4vh) * var(--fs))}
 
 /* 設定パネル（画面をタップで開閉） */
@@ -692,12 +696,30 @@ function renderCal() {
   const d = new Date(), y = d.getFullYear(), mo = d.getMonth(), today = d.getDate();
   const off = new Date(y, mo, 1).getDay(), dim = new Date(y, mo + 1, 0).getDate();
   const hol = jpHolidays(y);
-  const cal = el("div", "cal");
+  // 日ごとの予報（今日から最大16日）を "YYYY-MM-DD" → 天気コード にしておく。取れていなければマークは出さない
+  const wx = {};
+  if (lastW && lastW.daily) lastW.daily.time.forEach((t, i) => { wx[t] = lastW.daily.weather_code[i]; });
+  const cal = el("div", "cal" + (Object.keys(wx).length ? " wx" : ""));
   WD.forEach((w, i) => cal.append(el("div", "wd" + (i === 0 ? " sun" : i === 6 ? " sat" : ""), w)));
   for (let i = 0; i < off; i++) cal.append(el("div"));
   for (let n = 1; n <= dim; n++) {
     const wd = (off + n - 1) % 7, h = hol[(mo + 1) + "-" + n];
-    const c = el("div", n === today ? "today" : (wd === 0 || h) ? "sun" : wd === 6 ? "sat" : "", n);
+    const c = el("div", n === today ? "today" : (wd === 0 || h) ? "sun" : wd === 6 ? "sat" : "");
+    c.append(el("span", "n", n));
+    const code = wx[y + "-" + pad(mo + 1) + "-" + pad(n)];
+    if (code != null) c.append(el("span", "wi", WMO(code)[0]));
+    if (h) c.title = h;
+    cal.append(c);
+  }
+  // 最後の週の空いたマスに、来月の頭の日を薄く出す（月末でも先の天気が見えるように）
+  const ny = mo === 11 ? y + 1 : y, nm = (mo + 1) % 12, nhol = jpHolidays(ny);
+  const rest = (7 - (off + dim) % 7) % 7;
+  for (let n = 1; n <= rest; n++) {
+    const wd = (off + dim + n - 1) % 7, h = nhol[(nm + 1) + "-" + n];
+    const c = el("div", "next" + ((wd === 0 || h) ? " sun" : wd === 6 ? " sat" : ""));
+    c.append(el("span", "n", (n === 1 ? (nm + 1) + "/" : "") + n));   // 1日は「11/1」と月も添える
+    const code = wx[ny + "-" + pad(nm + 1) + "-" + pad(n)];
+    if (code != null) c.append(el("span", "wi", WMO(code)[0]));
     if (h) c.title = h;
     cal.append(c);
   }
@@ -764,7 +786,7 @@ async function loadWeather() {
     "&current=temperature_2m,weather_code" +
     "&hourly=temperature_2m,weather_code,precipitation_probability" +
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
-    "&timezone=Asia%2FTokyo&forecast_days=5";
+    "&timezone=Asia%2FTokyo&forecast_days=16";   // カレンダーに約2週間ぶんのマークを出すため16日（Open-Meteo の上限）
   const box = $("weather");
   try {
     const res = await fetch(url, { cache: "no-store" });
